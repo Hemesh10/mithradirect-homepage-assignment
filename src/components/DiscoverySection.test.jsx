@@ -6,7 +6,7 @@ import { normalizeHomeResponse } from '../api/homeAdapter'
 import { homeFixture } from '../test/homeFixture'
 import { useHomeDiscovery } from '../hooks/useHomeDiscovery'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
-import { reverseGeocode } from '../api/locationApi'
+import { reverseGeocode, warmLocationService } from '../api/locationApi'
 
 vi.mock('../hooks/useHomeDiscovery', () => ({
   useHomeDiscovery: vi.fn(),
@@ -18,6 +18,7 @@ vi.mock('../hooks/usePlaceSearch', () => ({
 
 vi.mock('../api/locationApi', () => ({
   reverseGeocode: vi.fn(),
+  warmLocationService: vi.fn(),
 }))
 
 const normalizedData = normalizeHomeResponse(homeFixture)
@@ -37,6 +38,7 @@ describe('DiscoverySection', () => {
       error: '',
     })
     reverseGeocode.mockReset()
+    warmLocationService.mockResolvedValue()
   })
 
   it('renders live counts and omits an empty offers section', () => {
@@ -87,6 +89,37 @@ describe('DiscoverySection', () => {
     })
   })
 
+  it('supports keyboard navigation and immediate location selection', async () => {
+    usePlaceSearch.mockReturnValue({
+      suggestions: [{
+        id: 'place-1',
+        name: 'Hyderabad',
+        label: 'Hyderabad, Telangana',
+        detail: 'Telangana · 500001',
+        postcode: '500001',
+        latitude: 17.385,
+        longitude: 78.4867,
+      }],
+      isSearching: false,
+      error: '',
+    })
+    const user = userEvent.setup()
+    render(<DiscoverySection />)
+
+    const input = screen.getByRole('combobox', { name: 'Search for an area or place' })
+    await user.clear(input)
+    await user.type(input, 'Hyderabad')
+    await user.keyboard('{ArrowDown}{Enter}')
+
+    await waitFor(() => expect(input).toHaveValue('Hyderabad, Telangana'))
+    expect(input).toHaveAttribute('aria-autocomplete', 'list')
+    expect(useHomeDiscovery).toHaveBeenLastCalledWith({
+      serviceArea: '500001',
+      latitude: 17.385,
+      longitude: 78.4867,
+    })
+  })
+
   it('reverse geocodes the browser location into the search field', async () => {
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
@@ -114,6 +147,31 @@ describe('DiscoverySection', () => {
       expect(screen.getByRole('combobox')).toHaveValue('Siddipet, Telangana')
     })
     expect(reverseGeocode).toHaveBeenCalledWith(18.100525, 78.848279)
+  })
+
+  it('does not apply current coordinates when reverse geocoding fails', async () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (success) => success({
+          coords: { latitude: 17.385, longitude: 78.4867 },
+        }),
+      },
+    })
+    reverseGeocode.mockRejectedValue({
+      userMessage: 'Choose a more specific address that includes a six-digit pincode.',
+    })
+    const user = userEvent.setup()
+    render(<DiscoverySection />)
+
+    await user.click(screen.getByRole('button', { name: /use my location/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/six-digit pincode/i)
+    expect(useHomeDiscovery).toHaveBeenLastCalledWith({
+      serviceArea: '502103',
+      latitude: 18.100525,
+      longitude: 78.848279,
+    })
   })
 
   it('opens a vendor preview, traps the dialog, and closes on Escape', async () => {

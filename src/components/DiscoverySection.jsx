@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { useHomeDiscovery } from '../hooks/useHomeDiscovery'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
-import { reverseGeocode } from '../api/locationApi'
+import { reverseGeocode, warmLocationService } from '../api/locationApi'
 
 const defaultQuery = {
   serviceArea: '502103',
@@ -33,10 +33,28 @@ const defaultPlace = {
   id: 'default-siddipet',
   name: 'Siddipet',
   label: 'Siddipet, Telangana',
-  detail: 'Telangana · 502103',
+  detail: 'Telangana, 502103',
   postcode: '502103',
   latitude: defaultQuery.latitude,
   longitude: defaultQuery.longitude,
+  locationType: 'APPROXIMATE',
+}
+
+function HighlightedText({ text, query }) {
+  const value = String(text || '')
+  const search = query.trim()
+  if (!search) return value
+
+  const index = value.toLocaleLowerCase('en-IN').indexOf(search.toLocaleLowerCase('en-IN'))
+  if (index < 0) return value
+
+  return (
+    <>
+      {value.slice(0, index)}
+      <mark>{value.slice(index, index + search.length)}</mark>
+      {value.slice(index + search.length)}
+    </>
+  )
 }
 
 function SafeImage({ src, alt, className = '' }) {
@@ -164,7 +182,6 @@ function FeaturedCarousel({ vendors, onPreview }) {
     >
       <div className="featured-carousel__media">
         <MediaWithFallback item={activeVendor} type="banner" />
-        <span className="featured-carousel__label"><Sparkles size={13} /> Featured nearby</span>
       </div>
       <div className="featured-carousel__content" aria-live="polite">
         <span className="discovery-kicker">Neighbourhood spotlight</span>
@@ -268,7 +285,6 @@ function ProductSlider({ products, onPreview }) {
   const trackRef = useRef(null)
   const [canMoveBack, setCanMoveBack] = useState(false)
   const [canMoveForward, setCanMoveForward] = useState(products.length > 1)
-  const [progress, setProgress] = useState(0)
 
   const updateControls = () => {
     const track = trackRef.current
@@ -276,7 +292,6 @@ function ProductSlider({ products, onPreview }) {
     const maximum = Math.max(0, track.scrollWidth - track.clientWidth)
     setCanMoveBack(track.scrollLeft > 4)
     setCanMoveForward(track.scrollLeft < maximum - 4)
-    setProgress(maximum > 0 ? Math.min(100, (track.scrollLeft / maximum) * 100) : 100)
   }
 
   useEffect(() => {
@@ -312,9 +327,6 @@ function ProductSlider({ products, onPreview }) {
             <ChevronRight size={19} />
           </button>
         </div>
-      </div>
-      <div className="product-slider__progress" aria-hidden="true">
-        <span style={{ width: `${Math.max(12, progress)}%` }} />
       </div>
       <div className="product-slider__viewport">
         <div
@@ -436,7 +448,7 @@ function PreviewDrawer({ selection, onClose }) {
           </>
         )}
         <a className="preview-drawer__cta" href="#waitlist" onClick={onClose}>
-          Sign up for storefront access <ArrowRight size={16} />
+          Sign up <ArrowRight size={16} />
         </a>
         <small className="preview-drawer__note">Preview data does not include live pricing or availability.</small>
       </aside>
@@ -458,11 +470,14 @@ function DiscoveryError({ error, onRetry }) {
 }
 
 export default function DiscoverySection() {
+  const sectionRef = useRef(null)
   const [query, setQuery] = useState(defaultQuery)
   const [activePlace, setActivePlace] = useState(defaultPlace)
   const [searchText, setSearchText] = useState(defaultPlace.label)
   const [searchOpen, setSearchOpen] = useState(false)
   const [isEditingLocation, setIsEditingLocation] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const [isApplyingPlace, setIsApplyingPlace] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [geoStatus, setGeoStatus] = useState('idle')
   const [selection, setSelection] = useState(null)
@@ -472,27 +487,80 @@ export default function DiscoverySection() {
     searchOpen && isEditingLocation,
   )
 
-  const selectPlace = (place) => {
-    const postcode = place.postcode || query.serviceArea
-    const resolvedPlace = {
-      ...place,
-      postcode,
-      detail: place.detail || `Pincode ${postcode}`,
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section || !window.IntersectionObserver) {
+      warmLocationService()
+      return undefined
     }
 
-    setActivePlace(resolvedPlace)
-    setSearchText(resolvedPlace.label)
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          warmLocationService()
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '500px 0px' },
+    )
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    setHighlightedIndex(suggestions.length ? 0 : -1)
+  }, [suggestions])
+
+  const applyPlace = (place) => {
+    setActivePlace(place)
+    setSearchText(place.label)
     setQuery({
-      serviceArea: postcode,
-      latitude: resolvedPlace.latitude,
-      longitude: resolvedPlace.longitude,
+      serviceArea: place.postcode,
+      latitude: place.latitude,
+      longitude: place.longitude,
     })
     setLocationError('')
     setSearchOpen(false)
     setIsEditingLocation(false)
+    setHighlightedIndex(-1)
+  }
+
+  const selectPlace = async (place) => {
+    if (isApplyingPlace) return
+    setIsApplyingPlace(true)
+    setLocationError('')
+
+    try {
+      let resolvedPlace = place
+      if (!place.postcode) {
+        const postcodePlace = await reverseGeocode(place.latitude, place.longitude)
+        resolvedPlace = {
+          ...place,
+          postcode: postcodePlace.postcode,
+          detail: place.detail || postcodePlace.detail,
+        }
+      }
+
+      if (!resolvedPlace.postcode) {
+        throw new Error('Choose a more specific address that includes a six-digit pincode.')
+      }
+      applyPlace(resolvedPlace)
+    } catch (placeError) {
+      setLocationError(
+        placeError?.userMessage ||
+        placeError?.message ||
+        'Choose a more specific address that includes a six-digit pincode.',
+      )
+    } finally {
+      setIsApplyingPlace(false)
+    }
   }
 
   const useCurrentLocation = () => {
+    if (window.isSecureContext === false) {
+      setLocationError('Current location requires a secure HTTPS connection.')
+      return
+    }
     if (!navigator.geolocation) {
       setLocationError('Current location is not supported in this browser.')
       return
@@ -507,23 +575,17 @@ export default function DiscoverySection() {
 
         try {
           const place = await reverseGeocode(latitude, longitude)
-          selectPlace({
+          applyPlace({
             ...place,
-            postcode: place.postcode || query.serviceArea,
-          })
-          setGeoStatus('success')
-        } catch {
-          const fallbackPlace = {
-            id: `current-${latitude}-${longitude}`,
-            name: 'Current location',
-            label: 'Current location',
-            detail: `${latitude.toFixed(4)}, ${longitude.toFixed(4)} · ${query.serviceArea}`,
-            postcode: query.serviceArea,
             latitude,
             longitude,
-          }
-          selectPlace(fallbackPlace)
-          setLocationError('We found your coordinates but could not resolve the area name.')
+          })
+          setGeoStatus('success')
+        } catch (geocodeError) {
+          setLocationError(
+            geocodeError?.userMessage ||
+            'We found your coordinates but could not resolve a matching address and pincode.',
+          )
           setGeoStatus('error')
         }
       },
@@ -536,7 +598,7 @@ export default function DiscoverySection() {
         setLocationError(messages[geoError.code] || 'Your current location could not be determined.')
         setGeoStatus('error')
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
     )
   }
 
@@ -544,14 +606,14 @@ export default function DiscoverySection() {
   const closePreview = () => setSelection(null)
 
   return (
-    <section className="neighbourhood" id="discover" aria-labelledby="discover-title">
+    <section className="neighbourhood" id="discover" aria-labelledby="discover-title" ref={sectionRef}>
       <div className="container">
         <div className="neighbourhood__heading">
           <div>
             <span className="kicker">Live neighbourhood preview</span>
-            <h2 id="discover-title">See what’s good<br />around the corner.</h2>
+            <h2 id="discover-title">See what’s good around the corner.</h2>
           </div>
-          <p>Real businesses and popular picks returned for your service area—framed through the Mithra Direct experience.</p>
+          <p>Real businesses and popular picks returned for your service area, presented through the Mithra Direct experience.</p>
         </div>
 
         <div className="location-toolbar">
@@ -572,13 +634,29 @@ export default function DiscoverySection() {
                   setSearchText(event.target.value)
                   setSearchOpen(true)
                   setIsEditingLocation(true)
+                  setHighlightedIndex(-1)
                   setLocationError('')
                 }}
                 onKeyDown={(event) => {
+                  if (event.key === 'ArrowDown' && suggestions.length) {
+                    event.preventDefault()
+                    setHighlightedIndex((index) => (index + 1) % suggestions.length)
+                  }
+                  if (event.key === 'ArrowUp' && suggestions.length) {
+                    event.preventDefault()
+                    setHighlightedIndex((index) => (
+                      index <= 0 ? suggestions.length - 1 : index - 1
+                    ))
+                  }
+                  if (event.key === 'Enter' && highlightedIndex >= 0) {
+                    event.preventDefault()
+                    selectPlace(suggestions[highlightedIndex])
+                  }
                   if (event.key === 'Escape') {
                     setSearchText(activePlace.label)
                     setSearchOpen(false)
                     setIsEditingLocation(false)
+                    setHighlightedIndex(-1)
                   }
                 }}
                 role="combobox"
@@ -586,11 +664,19 @@ export default function DiscoverySection() {
                 aria-expanded={searchOpen && isEditingLocation}
                 aria-controls="location-suggestions"
                 aria-autocomplete="list"
+                aria-activedescendant={
+                  highlightedIndex >= 0 ? `location-option-${highlightedIndex}` : undefined
+                }
                 placeholder="Search area or place"
               />
-              {!isEditingLocation && <span>{activePlace.detail}</span>}
+              {!isEditingLocation && (
+                <span>
+                  {activePlace.detail}
+                  {activePlace.locationType === 'APPROXIMATE' ? ', area centre' : ''}
+                </span>
+              )}
             </div>
-            {isSearching ? <LoaderCircle className="is-spinning location-search__status" size={17} /> : <Search className="location-search__status" size={17} />}
+            {isSearching || isApplyingPlace ? <LoaderCircle className="is-spinning location-search__status" size={17} /> : <Search className="location-search__status" size={17} />}
             {searchOpen && isEditingLocation && (
               <div className="location-suggestions" id="location-suggestions" role="listbox">
                 {searchText.trim().length < 3 && (
@@ -599,21 +685,37 @@ export default function DiscoverySection() {
                 {searchText.trim().length >= 3 && !isSearching && suggestions.length === 0 && !searchError && (
                   <div className="location-suggestions__hint">No matching areas found. Try a nearby city or landmark.</div>
                 )}
-                {suggestions.map((place) => (
-                  <button type="button" role="option" key={place.id} onClick={() => selectPlace(place)}>
+                {suggestions.map((place, index) => (
+                  <button
+                    type="button"
+                    role="option"
+                    id={`location-option-${index}`}
+                    key={place.id}
+                    className={highlightedIndex === index ? 'is-highlighted' : ''}
+                    aria-selected={highlightedIndex === index}
+                    onMouseMove={() => setHighlightedIndex(index)}
+                    onClick={() => selectPlace(place)}
+                    disabled={isApplyingPlace}
+                  >
                     <span><MapPin size={15} /></span>
-                    <div><strong>{place.name}</strong><small>{place.detail || place.label}</small></div>
+                    <div>
+                      <strong><HighlightedText text={place.name} query={searchText} /></strong>
+                      <small><HighlightedText text={place.detail || place.label} query={searchText} /></small>
+                    </div>
                     {place.postcode && <em>{place.postcode}</em>}
                   </button>
                 ))}
                 {searchError && <div className="location-suggestions__error">{searchError}</div>}
-                <div className="location-suggestions__credit">Search data © OpenStreetMap contributors</div>
+                <div className="location-suggestions__credit">
+                  <span>Location results by</span>
+                  <strong>Google Maps</strong>
+                </div>
               </div>
             )}
           </div>
           <div className="location-toolbar__actions">
             {isRefreshing && <span className="refreshing-label"><LoaderCircle size={14} /> Refreshing</span>}
-            <button type="button" onClick={useCurrentLocation} disabled={geoStatus === 'loading'}>
+            <button type="button" onClick={useCurrentLocation} disabled={geoStatus === 'loading' || isApplyingPlace}>
               {geoStatus === 'loading' ? <LoaderCircle className="is-spinning" size={16} /> : <Crosshair size={16} />}
               {geoStatus === 'loading' ? 'Locating…' : 'Use my location'}
             </button>

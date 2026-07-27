@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { searchPlaces } from '../api/locationApi'
 
 export function usePlaceSearch(searchText, enabled = true) {
   const [suggestions, setSuggestions] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState('')
+  const requestId = useRef(0)
 
   useEffect(() => {
     const query = searchText.trim()
+    const currentRequest = ++requestId.current
+
     if (!enabled || query.length < 3) {
       setSuggestions([])
       setIsSearching(false)
@@ -15,27 +18,30 @@ export function usePlaceSearch(searchText, enabled = true) {
       return undefined
     }
 
-    const controller = new AbortController()
-    const timer = window.setTimeout(() => {
-      setIsSearching(true)
-      setError('')
+    setSuggestions([])
+    setIsSearching(true)
+    setError('')
 
-      searchPlaces(query, { signal: controller.signal })
-        .then(setSuggestions)
+    const timer = window.setTimeout(() => {
+      searchPlaces(query)
+        .then((places) => {
+          if (currentRequest !== requestId.current) return
+          setSuggestions(places)
+        })
         .catch((searchError) => {
-          if (searchError?.name === 'AbortError') return
+          if (currentRequest !== requestId.current) return
           setSuggestions([])
-          setError('Area search is temporarily unavailable.')
+          setError(
+            searchError?.userMessage ||
+            'Location search is temporarily unavailable.',
+          )
         })
         .finally(() => {
-          if (!controller.signal.aborted) setIsSearching(false)
+          if (currentRequest === requestId.current) setIsSearching(false)
         })
-    }, 650)
+    }, 400)
 
-    return () => {
-      window.clearTimeout(timer)
-      controller.abort()
-    }
+    return () => window.clearTimeout(timer)
   }, [enabled, searchText])
 
   return { suggestions, isSearching, error }

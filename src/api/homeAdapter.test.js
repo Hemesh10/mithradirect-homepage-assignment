@@ -10,7 +10,7 @@ describe('normalizeHomeResponse', () => {
     expect(result.featuredVendors).toHaveLength(2)
     expect(result.vendors[0]).toMatchObject({
       vendorId: 124,
-      name: 'Kammani — Authentic Telangana Snacks',
+      name: 'Kammani - Authentic Telangana Snacks',
       bannerUrl: null,
       thumbnailUrl: null,
     })
@@ -21,7 +21,7 @@ describe('normalizeHomeResponse', () => {
   it('joins products to their vendors and derives live counts', () => {
     const result = normalizeHomeResponse(homeFixture)
 
-    expect(result.products[0].vendor?.name).toBe('Kammani — Authentic Telangana Snacks')
+    expect(result.products[0].vendor?.name).toBe('Kammani - Authentic Telangana Snacks')
     expect(result.vendors[0].products.map((product) => product.name)).toEqual([
       'Sarvapindi',
       'Vadas',

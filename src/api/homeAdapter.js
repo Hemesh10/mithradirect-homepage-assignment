@@ -44,6 +44,10 @@ function cleanString(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+function cleanDisplayString(value) {
+  return cleanString(value).replace(/[—–]/g, '-')
+}
+
 function imageUrl(value) {
   const cleaned = cleanString(value)
   return cleaned || null
@@ -69,7 +73,7 @@ function initials(name) {
 }
 
 function normalizeVendor(rawVendor, index) {
-  const name = cleanString(rawVendor?.business_name) || 'Local business'
+  const name = cleanDisplayString(rawVendor?.business_name) || 'Local business'
   const vendorId = toNumber(rawVendor?.vendor_id ?? rawVendor?.id)
 
   return {
@@ -120,7 +124,7 @@ export function normalizeHomeResponse(payload) {
     const vendorId = toNumber(rawProduct?.vendor_id)
     const url = imageUrl(rawProduct?.image_path)
     const vendor = vendorMap.get(vendorId) ?? null
-    const name = cleanString(rawProduct?.name) || 'Local product'
+    const name = cleanDisplayString(rawProduct?.name) || 'Local product'
 
     return {
       id: toNumber(rawProduct?.id),

@@ -23,7 +23,7 @@ export const audienceContent = {
   customers: {
     eyebrow: 'For customers',
     title: 'Everything you love, right around the corner.',
-    copy: 'Discover trusted neighbourhood businesses, order in a few taps and choose when—and how often—your favourites arrive.',
+    copy: 'Discover trusted neighbourhood businesses, order in a few taps and choose when and how often your favourites arrive.',
     bullets: [
       'Browse nearby shops in one familiar place',
       'Schedule one-time or recurring deliveries',
