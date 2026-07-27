@@ -10,10 +10,12 @@ const query = {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 describe('fetchHomeDiscovery', () => {
   it('sends the expected query and normalizes a successful response', async () => {
+    vi.stubEnv('VITE_HOME_API_BASE_URL', '/api/home')
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -26,6 +28,8 @@ describe('fetchHomeDiscovery', () => {
 
     expect(requestedUrl.searchParams.get('service_area')).toBe('502103')
     expect(requestedUrl.searchParams.get('latitude')).toBe('18.100525')
+    expect(requestedUrl.origin).toBe(window.location.origin)
+    expect(requestedUrl.pathname).toBe('/api/home')
     expect(result.summary.vendorCount).toBe(2)
   })
 
