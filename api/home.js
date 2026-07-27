@@ -1,4 +1,7 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
+// Plain JavaScript on purpose: Vercel's Node builder compiles files under
+// `api/` using the project's local TypeScript, and TypeScript 7 is not
+// supported by that builder. Shipping .js keeps this function independent of
+// the app's TypeScript version. Input is validated at runtime below.
 
 const UPSTREAM_HOME_API_URL =
   'https://subscriptionapp-wgf8.onrender.com/api/v1/home'
@@ -6,13 +9,7 @@ const UPSTREAM_HOME_API_URL =
 const SERVICE_AREA_PATTERN = /^\d{6}$/
 const UPSTREAM_TIMEOUT_MS = 15000
 
-type ProxyRequest = IncomingMessage & { query?: Record<string, string | string[]> }
-
-function sendJson(
-  response: ServerResponse,
-  status: number,
-  payload: unknown,
-) {
+function sendJson(response, status, payload) {
   response.statusCode = status
   response.setHeader('Content-Type', 'application/json; charset=utf-8')
   response.setHeader('Cache-Control', 'no-store')
@@ -20,7 +17,7 @@ function sendJson(
   response.end(JSON.stringify(payload))
 }
 
-function sendError(response: ServerResponse, status: number, message: string) {
+function sendError(response, status, message) {
   sendJson(response, status, {
     success: false,
     failure_reason: message,
@@ -28,25 +25,18 @@ function sendError(response: ServerResponse, status: number, message: string) {
   })
 }
 
-function firstValue(value: string | string[] | undefined): string | null {
+function firstValue(value) {
   if (Array.isArray(value)) return value[0] ?? null
   return value ?? null
 }
 
-function validCoordinate(
-  value: string | null,
-  minimum: number,
-  maximum: number,
-) {
+function validCoordinate(value, minimum, maximum) {
   if (value === null || value.trim() === '') return false
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum
 }
 
-export default async function handler(
-  request: ProxyRequest,
-  response: ServerResponse,
-) {
+export default async function handler(request, response) {
   if (request.method !== 'GET') {
     response.setHeader('Allow', 'GET')
     sendError(response, 405, 'Only GET requests are supported.')
@@ -79,9 +69,9 @@ export default async function handler(
   }
 
   const upstreamUrl = new URL(UPSTREAM_HOME_API_URL)
-  upstreamUrl.searchParams.set('service_area', serviceArea as string)
-  upstreamUrl.searchParams.set('latitude', latitude as string)
-  upstreamUrl.searchParams.set('longitude', longitude as string)
+  upstreamUrl.searchParams.set('service_area', serviceArea)
+  upstreamUrl.searchParams.set('latitude', latitude)
+  upstreamUrl.searchParams.set('longitude', longitude)
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)

@@ -1,8 +1,9 @@
 // @vitest-environment node
 
-import { ServerResponse } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import handler from '../../api/home'
+// @ts-expect-error - the proxy ships as plain JS so Vercel's builder never
+// compiles it with the project's TypeScript. See api/home.js.
+import handler from '../../api/home.js'
 import { homeFixture } from '../test/homeFixture'
 
 const VALID_QUERY = {
@@ -15,29 +16,31 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-/** Minimal req/res pair matching what Vercel's Node runtime passes in. */
-function invoke(
-  query: Record<string, string>,
-  method = 'GET',
-) {
-  const request = { method, query } as never
+/**
+ * Minimal req/res pair matching what Vercel's Node runtime passes in. The
+ * handler only uses `statusCode`, `setHeader`, and `end`, so a plain stub
+ * avoids depending on Node type definitions.
+ */
+function invoke(query: Record<string, string>, method = 'GET') {
+  const request = { method, query }
   const chunks: string[] = []
-  const response = new ServerResponse({ method } as never)
-  const done = new Promise<void>((resolve) => {
-    response.end = ((chunk?: string) => {
+  const headers: Record<string, string> = {}
+  const response = {
+    statusCode: 0,
+    setHeader(name: string, value: string) {
+      headers[name.toLowerCase()] = value
+    },
+    end(chunk?: string) {
       if (chunk) chunks.push(chunk)
-      resolve()
-      return response
-    }) as never
-  })
+    },
+  }
 
   return {
-    response,
     async run() {
       await handler(request, response)
-      await done
       return {
         status: response.statusCode,
+        headers,
         body: chunks.join(''),
         json: () => JSON.parse(chunks.join('')),
       }
@@ -86,6 +89,7 @@ describe('home API proxy', () => {
     const result = await invoke(VALID_QUERY, 'POST').run()
 
     expect(result.status).toBe(405)
+    expect(result.headers.allow).toBe('GET')
     expect(result.json().user_message).toMatch(/only get/i)
   })
 
