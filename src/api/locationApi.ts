@@ -2,13 +2,109 @@ const GOOGLE_MAPS_SCRIPT_ID = 'mithra-google-maps'
 const GOOGLE_MAPS_CALLBACK = '__mithraGoogleMapsReady'
 const INDIA_COUNTRY_CODE = 'IN'
 const GEOCODING_V4_BASE_URL = 'https://geocode.googleapis.com/v4/geocode/location'
-const searchCache = new Map()
+const searchCache = new Map<string, LocationPlace[]>()
 
-let mapsPromise = null
-let placesLibraryPromise = null
+type LocationErrorCode =
+  | 'CONFIG_ERROR'
+  | 'LOAD_ERROR'
+  | 'ZERO_RESULTS'
+  | 'OVER_QUERY_LIMIT'
+  | 'REQUEST_DENIED'
+  | 'INVALID_REQUEST'
+  | 'UNKNOWN_ERROR'
+  | 'ERROR'
+  | 'NO_POSTCODE'
+
+interface GoogleAddressComponent {
+  types?: string[]
+  longText?: string
+  shortText?: string
+  long_name?: string
+  short_name?: string
+}
+
+interface GoogleLocation {
+  lat?: number | (() => number)
+  lng?: number | (() => number)
+  latitude?: number
+  longitude?: number
+}
+
+interface GoogleResult {
+  id?: string
+  placeId?: string
+  place_id?: string
+  displayName?: string | { text?: string }
+  formattedAddress?: string
+  formatted_address?: string
+  addressComponents?: GoogleAddressComponent[]
+  address_components?: GoogleAddressComponent[]
+  location?: GoogleLocation
+  geometry?: {
+    location?: GoogleLocation
+    location_type?: string
+  }
+  granularity?: string
+}
+
+interface PlaceSearchResponse {
+  places?: GoogleResult[]
+}
+
+interface PlacesLibrary {
+  Place: {
+    searchByText(request: {
+      textQuery: string
+      fields: string[]
+      language: string
+      region: string
+      maxResultCount: number
+    }): Promise<PlaceSearchResponse>
+  }
+}
+
+interface GoogleMapsApi {
+  importLibrary(name: 'places'): Promise<PlacesLibrary>
+}
+
+interface GoogleMapsGlobal {
+  maps?: GoogleMapsApi
+}
+
+declare global {
+  interface Window {
+    google?: GoogleMapsGlobal
+    __mithraGoogleMapsReady?: () => void
+  }
+}
+
+export interface LocationPlace {
+  id: string
+  placeId: string
+  name: string
+  label: string
+  detail: string
+  postcode: string
+  latitude: number
+  longitude: number
+  countryCode: string
+  locationType: string
+}
+
+let mapsPromise: Promise<GoogleMapsApi> | null = null
+let placesLibraryPromise: Promise<PlacesLibrary> | null = null
 
 export class LocationServiceError extends Error {
-  constructor(message, { code = 'UNKNOWN_ERROR', userMessage = '' } = {}) {
+  code: LocationErrorCode
+  userMessage: string
+
+  constructor(
+    message: string,
+    {
+      code = 'UNKNOWN_ERROR',
+      userMessage = '',
+    }: { code?: LocationErrorCode, userMessage?: string } = {},
+  ) {
     super(message)
     this.name = 'LocationServiceError'
     this.code = code
@@ -16,8 +112,19 @@ export class LocationServiceError extends Error {
   }
 }
 
-function locationError(code, cause) {
-  const messages = {
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return String(error.message)
+  }
+  return String(error || '')
+}
+
+function locationError(
+  code: LocationErrorCode,
+  cause?: unknown,
+): LocationServiceError {
+  const messages: Record<LocationErrorCode, string> = {
     CONFIG_ERROR: 'Location search has not been configured yet.',
     LOAD_ERROR: 'Google Maps could not be loaded. Check your connection and try again.',
     ZERO_RESULTS: 'No matching Indian addresses were found.',
@@ -28,13 +135,11 @@ function locationError(code, cause) {
     ERROR: 'Google location search timed out. Please try again.',
     NO_POSTCODE: 'Choose a more specific address that includes a six-digit pincode.',
   }
-  const normalizedCode = Object.hasOwn(messages, code) ? code : 'UNKNOWN_ERROR'
-
   return new LocationServiceError(
-    cause?.message || String(cause || normalizedCode),
+    errorMessage(cause) || code,
     {
-      code: normalizedCode,
-      userMessage: messages[normalizedCode],
+      code,
+      userMessage: messages[code],
     },
   )
 }
@@ -43,8 +148,11 @@ function getApiKey() {
   return String(import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim()
 }
 
-function googleStatus(error) {
-  const candidate = error?.status || error?.code || error?.message || error
+function googleStatus(error: unknown): LocationErrorCode {
+  const record = typeof error === 'object' && error !== null
+    ? error as Record<string, unknown>
+    : null
+  const candidate = record?.status || record?.code || record?.message || error
   const status = String(candidate || 'UNKNOWN_ERROR').toUpperCase()
   return status.includes('ZERO_RESULTS') ? 'ZERO_RESULTS'
     : status.includes('OVER_QUERY_LIMIT') || status.includes('RESOURCE_EXHAUSTED')
@@ -63,20 +171,20 @@ function googleStatus(error) {
               : 'UNKNOWN_ERROR'
 }
 
-export function loadGoogleMaps() {
+export function loadGoogleMaps(): Promise<GoogleMapsApi> {
   if (window.google?.maps?.importLibrary) return Promise.resolve(window.google.maps)
   if (mapsPromise) return mapsPromise
 
   const apiKey = getApiKey()
   if (!apiKey) return Promise.reject(locationError('CONFIG_ERROR'))
 
-  mapsPromise = new Promise((resolve, reject) => {
+  mapsPromise = new Promise<GoogleMapsApi>((resolve, reject) => {
     const existingScript = document.getElementById(GOOGLE_MAPS_SCRIPT_ID)
-    let timeoutId
+    let timeoutId: number
 
-    window[GOOGLE_MAPS_CALLBACK] = () => {
+    window.__mithraGoogleMapsReady = () => {
       window.clearTimeout(timeoutId)
-      delete window[GOOGLE_MAPS_CALLBACK]
+      delete window.__mithraGoogleMapsReady
       if (window.google?.maps?.importLibrary) {
         resolve(window.google.maps)
       } else {
@@ -87,7 +195,7 @@ export function loadGoogleMaps() {
 
     const onError = () => {
       window.clearTimeout(timeoutId)
-      delete window[GOOGLE_MAPS_CALLBACK]
+      delete window.__mithraGoogleMapsReady
       document.getElementById(GOOGLE_MAPS_SCRIPT_ID)?.remove()
       mapsPromise = null
       reject(locationError('LOAD_ERROR'))
@@ -121,7 +229,7 @@ export function loadGoogleMaps() {
   return mapsPromise
 }
 
-export async function warmLocationService() {
+export async function warmLocationService(): Promise<void> {
   try {
     await loadGoogleMaps()
   } catch {
@@ -129,7 +237,7 @@ export async function warmLocationService() {
   }
 }
 
-async function getPlacesLibrary() {
+async function getPlacesLibrary(): Promise<PlacesLibrary> {
   if (!placesLibraryPromise) {
     placesLibraryPromise = loadGoogleMaps()
       .then((maps) => maps.importLibrary('places'))
@@ -141,12 +249,12 @@ async function getPlacesLibrary() {
   return placesLibraryPromise
 }
 
-function cleanPostcode(value) {
+function cleanPostcode(value: unknown): string {
   const digits = String(value || '').replace(/\D/g, '')
   return digits.length === 6 ? digits : ''
 }
 
-function uniqueParts(parts) {
+function uniqueParts(parts: string[]): string[] {
   return parts.filter(
     (part, index) =>
       part &&
@@ -154,7 +262,10 @@ function uniqueParts(parts) {
   )
 }
 
-function component(result, ...types) {
+function component(
+  result: GoogleResult,
+  ...types: string[]
+): GoogleAddressComponent | null {
   const components = result?.addressComponents || result?.address_components || []
   for (const type of types) {
     const match = components.find((item) => item.types?.includes(type))
@@ -163,20 +274,23 @@ function component(result, ...types) {
   return null
 }
 
-function componentText(item, short = false) {
+function componentText(item: GoogleAddressComponent | null, short = false): string {
   if (!item) return ''
   return short
     ? item.shortText || item.short_name || ''
     : item.longText || item.long_name || ''
 }
 
-function coordinate(location, key) {
+function coordinate(
+  location: GoogleLocation | undefined,
+  key: 'lat' | 'lng',
+): number {
   const alternateKey = key === 'lat' ? 'latitude' : 'longitude'
   const value = location?.[key] ?? location?.[alternateKey]
   return Number(typeof value === 'function' ? value.call(location) : value)
 }
 
-export function normalizeGoogleResult(result) {
+export function normalizeGoogleResult(result: GoogleResult): LocationPlace | null {
   const location = result?.location || result?.geometry?.location
   const latitude = coordinate(location, 'lat')
   const longitude = coordinate(location, 'lng')
@@ -207,9 +321,9 @@ export function normalizeGoogleResult(result) {
     'locality',
     'administrative_area_level_2',
   ))
-  const displayName = typeof result?.displayName === 'string'
+  const displayName = typeof result.displayName === 'string'
     ? result.displayName
-    : result?.displayName?.text
+    : result.displayName?.text
   const name = displayName || componentName || 'Selected area'
   const detail = uniqueParts([locality, city, state, postcode]).join(', ')
   const placeId = result.id || result.placeId || result.place_id || ''
@@ -230,7 +344,7 @@ export function normalizeGoogleResult(result) {
   }
 }
 
-async function searchByText(query) {
+async function searchByText(query: string): Promise<GoogleResult[]> {
   try {
     const { Place } = await getPlacesLibrary()
     const response = await Place.searchByText({
@@ -253,17 +367,18 @@ async function searchByText(query) {
   }
 }
 
-export async function searchPlaces(searchText) {
+export async function searchPlaces(searchText: string): Promise<LocationPlace[]> {
   const query = String(searchText || '').trim()
   if (query.length < 3) return []
 
   const cacheKey = query.toLocaleLowerCase('en-IN')
-  if (searchCache.has(cacheKey)) return searchCache.get(cacheKey)
+  const cachedPlaces = searchCache.get(cacheKey)
+  if (cachedPlaces) return cachedPlaces
 
   const results = await searchByText(query)
   const places = results
     .map(normalizeGoogleResult)
-    .filter(Boolean)
+    .filter((place): place is LocationPlace => place !== null)
     .slice(0, 5)
 
   if (!places.length) throw locationError('ZERO_RESULTS')
@@ -271,7 +386,10 @@ export async function searchPlaces(searchText) {
   return places
 }
 
-export async function reverseGeocode(latitude, longitude) {
+export async function reverseGeocode(
+  latitude: number,
+  longitude: number,
+): Promise<LocationPlace> {
   const lat = Number(latitude)
   const lng = Number(longitude)
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -285,7 +403,7 @@ export async function reverseGeocode(latitude, longitude) {
   url.searchParams.set('key', apiKey)
 
   let response
-  let payload
+  let payload: unknown
   try {
     response = await fetch(url)
     payload = await response.json()
@@ -293,13 +411,20 @@ export async function reverseGeocode(latitude, longitude) {
     throw locationError('UNKNOWN_ERROR', error)
   }
 
-  if (!response.ok || payload?.error) {
-    const error = payload?.error || { status: response.status }
+  const payloadRecord = typeof payload === 'object' && payload !== null
+    ? payload as Record<string, unknown>
+    : null
+  if (!response.ok || payloadRecord?.error) {
+    const error = payloadRecord?.error || { status: response.status }
     throw locationError(googleStatus(error), error)
   }
 
-  const results = Array.isArray(payload?.results) ? payload.results : []
-  const places = results.map(normalizeGoogleResult).filter(Boolean)
+  const results = Array.isArray(payloadRecord?.results)
+    ? payloadRecord.results as GoogleResult[]
+    : []
+  const places = results
+    .map(normalizeGoogleResult)
+    .filter((place): place is LocationPlace => place !== null)
   const place = places.find((candidate) => candidate.postcode)
 
   if (!place) throw locationError(places.length ? 'NO_POSTCODE' : 'ZERO_RESULTS')

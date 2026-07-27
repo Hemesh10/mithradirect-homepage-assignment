@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+} from 'react'
 import {
   ArrowRight,
   ArrowsClockwise,
@@ -23,6 +28,14 @@ import {
 import { useHomeDiscovery } from '../hooks/useHomeDiscovery'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
 import { reverseGeocode, warmLocationService } from '../api/locationApi'
+import type { LocationPlace } from '../api/locationApi'
+import type {
+  HomeDiscoveryData,
+  Offer,
+  Product,
+  Vendor,
+} from '../api/homeAdapter'
+import type { DiscoveryRequestError } from '../hooks/useHomeDiscovery'
 import heroImage from '../assets/hyperlocal-platform-hero.webp'
 import onlineOrderingHeroImage from '../assets/mithra-direct-online-ordering-hero.webp'
 
@@ -34,14 +47,16 @@ const defaultQuery = {
 
 const defaultPlace = {
   id: 'default-siddipet',
+  placeId: '',
   name: 'Siddipet',
   label: 'Siddipet, Telangana',
   detail: 'Telangana, 502103',
   postcode: '502103',
   latitude: defaultQuery.latitude,
   longitude: defaultQuery.longitude,
+  countryCode: 'IN',
   locationType: 'APPROXIMATE',
-}
+} satisfies LocationPlace
 
 const sampleOfferTemplates = [
   {
@@ -134,7 +149,18 @@ const sampleOfferTemplates = [
   },
 ]
 
-function buildSampleOffers(data) {
+type PreviewType = 'vendor' | 'product'
+type PreviewHandler = (
+  item: Vendor | Product,
+  type: PreviewType,
+  trigger: HTMLElement,
+) => void
+
+type PreviewSelection =
+  | { item: Vendor, type: 'vendor', trigger: HTMLElement }
+  | { item: Product, type: 'product', trigger: HTMLElement }
+
+function buildSampleOffers(data: HomeDiscoveryData): Offer[] {
   return sampleOfferTemplates.map((template) => {
     const { targetIndex, targetType, ...offer } = template
     const product = targetType === 'product' && data.products.length
@@ -155,7 +181,7 @@ function buildSampleOffers(data) {
   })
 }
 
-function HighlightedText({ text, query }) {
+function HighlightedText({ text, query }: { text: string, query: string }) {
   const value = String(text || '')
   const search = query.trim()
   if (!search) return value
@@ -172,7 +198,15 @@ function HighlightedText({ text, query }) {
   )
 }
 
-function SafeImage({ src, alt, className = '' }) {
+function SafeImage({
+  src,
+  alt,
+  className = '',
+}: {
+  src: string | null
+  alt: string
+  className?: string
+}) {
   const [failed, setFailed] = useState(false)
 
   useEffect(() => setFailed(false), [src])
@@ -192,7 +226,15 @@ function SafeImage({ src, alt, className = '' }) {
   )
 }
 
-function BrandFallback({ item, className = '', variant = 'compact' }) {
+function BrandFallback({
+  item,
+  className = '',
+  variant = 'compact',
+}: {
+  item: Vendor
+  className?: string
+  variant?: 'compact' | 'showcase'
+}) {
   const isShowcase = variant === 'showcase'
 
   return (
@@ -217,10 +259,18 @@ function BrandFallback({ item, className = '', variant = 'compact' }) {
   )
 }
 
-function MediaWithFallback({ item, type = 'thumbnail', className = '' }) {
+function MediaWithFallback({
+  item,
+  type = 'thumbnail',
+  className = '',
+}: {
+  item: Vendor
+  type?: 'banner' | 'thumbnail'
+  className?: string
+}) {
   const sources = type === 'banner'
-    ? [item.bannerUrl, item.thumbnailUrl].filter(Boolean)
-    : [item.thumbnailUrl].filter(Boolean)
+    ? [item.bannerUrl, item.thumbnailUrl].filter((source): source is string => Boolean(source))
+    : [item.thumbnailUrl].filter((source): source is string => Boolean(source))
   const [sourceIndex, setSourceIndex] = useState(0)
   const src = sources[sourceIndex]
   const isThumbnailFallback = type === 'banner' && src === item.thumbnailUrl
@@ -312,8 +362,14 @@ function HeroStorefrontFallback() {
   )
 }
 
-function FeaturedCarousel({ vendors, onPreview }) {
-  const trackRef = useRef(null)
+function FeaturedCarousel({
+  vendors,
+  onPreview,
+}: {
+  vendors: Vendor[]
+  onPreview: PreviewHandler
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
   const [canMoveBack, setCanMoveBack] = useState(false)
   const [canMoveForward, setCanMoveForward] = useState(vendors.length > 1)
 
@@ -331,7 +387,7 @@ function FeaturedCarousel({ vendors, onPreview }) {
     return () => window.removeEventListener('resize', updateControls)
   }, [vendors.length])
 
-  const move = (direction) => {
+  const move = (direction: number) => {
     const track = trackRef.current
     if (!track) return
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -411,7 +467,7 @@ function FeaturedCarousel({ vendors, onPreview }) {
   )
 }
 
-function VendorCard({ vendor, onPreview }) {
+function VendorCard({ vendor, onPreview }: { vendor: Vendor, onPreview: PreviewHandler }) {
   return (
     <button
       type="button"
@@ -432,7 +488,7 @@ function VendorCard({ vendor, onPreview }) {
   )
 }
 
-function ProductArtwork({ product, className = '' }) {
+function ProductArtwork({ product, className = '' }: { product: Product, className?: string }) {
   if (product.usePlaceholder) {
     return (
       <div className={`product-artwork product-artwork--${product.fallbackColor} ${className}`} aria-hidden="true">
@@ -450,7 +506,7 @@ function ProductArtwork({ product, className = '' }) {
   )
 }
 
-function ProductCard({ product, onPreview }) {
+function ProductCard({ product, onPreview }: { product: Product, onPreview: PreviewHandler }) {
   return (
     <button
       type="button"
@@ -468,8 +524,14 @@ function ProductCard({ product, onPreview }) {
   )
 }
 
-function ProductSlider({ products, onPreview }) {
-  const trackRef = useRef(null)
+function ProductSlider({
+  products,
+  onPreview,
+}: {
+  products: Product[]
+  onPreview: PreviewHandler
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
   const [canMoveBack, setCanMoveBack] = useState(false)
   const [canMoveForward, setCanMoveForward] = useState(products.length > 1)
 
@@ -490,7 +552,7 @@ function ProductSlider({ products, onPreview }) {
     }
   }, [products.length])
 
-  const move = (direction) => {
+  const move = (direction: number) => {
     const track = trackRef.current
     if (!track) return
     const distance = Math.max(240, track.clientWidth * 0.82) * direction
@@ -531,7 +593,7 @@ function ProductSlider({ products, onPreview }) {
   )
 }
 
-function formatOfferExpiry(value) {
+function formatOfferExpiry(value: string): string {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -543,8 +605,16 @@ function formatOfferExpiry(value) {
   }).format(date)
 }
 
-function OffersStrip({ offers, isPreview = false, onPreview }) {
-  const trackRef = useRef(null)
+function OffersStrip({
+  offers,
+  isPreview = false,
+  onPreview,
+}: {
+  offers: Offer[]
+  isPreview?: boolean
+  onPreview?: PreviewHandler
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
   const [canMoveBack, setCanMoveBack] = useState(false)
   const [canMoveForward, setCanMoveForward] = useState(offers.length > 1)
   const titleId = isPreview ? 'sample-offers-title' : 'offers-title'
@@ -565,7 +635,7 @@ function OffersStrip({ offers, isPreview = false, onPreview }) {
     }
   }, [offers.length])
 
-  const move = (direction) => {
+  const move = (direction: number) => {
     const track = trackRef.current
     if (!track) return
     const distance = direction * Math.max(300, track.clientWidth * 0.78)
@@ -617,15 +687,15 @@ function OffersStrip({ offers, isPreview = false, onPreview }) {
         ref={trackRef}
         onScroll={updateControls}
         aria-label={isPreview ? 'Sample local offers' : 'Local offers'}
-        tabIndex="0"
+        tabIndex={0}
       >
         {offers.map((offer) => {
           const linkedItem = offer.product || offer.vendor
           const linkedType = offer.product ? 'product' : 'vendor'
           const metaLabel = offer.code ? 'Code' : 'Ends'
           const metaValue = offer.code || formatOfferExpiry(offer.expiresAt)
-          const Card = linkedItem ? 'button' : 'article'
-          const cardProps = linkedItem
+          const Card: 'button' | 'article' = linkedItem ? 'button' : 'article'
+          const cardProps: ButtonHTMLAttributes<HTMLButtonElement> = linkedItem
             ? {
                 type: 'button',
                 'aria-label': `Preview ${offer.title} for ${linkedItem.name}`,
@@ -670,7 +740,13 @@ function OffersStrip({ offers, isPreview = false, onPreview }) {
   )
 }
 
-function OffersEmptyState({ isPreviewOpen, onTogglePreview }) {
+function OffersEmptyState({
+  isPreviewOpen,
+  onTogglePreview,
+}: {
+  isPreviewOpen: boolean
+  onTogglePreview: () => void
+}) {
   return (
     <aside className="offers-empty-state" aria-label="Local offers availability">
       <span className="offers-empty-state__icon"><BadgePercent size={22} aria-hidden="true" /></span>
@@ -693,11 +769,15 @@ function OffersEmptyState({ isPreviewOpen, onTogglePreview }) {
   )
 }
 
-function PreviewDrawer({ selection, onClose }) {
-  const dialogRef = useRef(null)
-  const closeRef = useRef(null)
-  const item = selection?.item
-  const isVendor = selection?.type === 'vendor'
+function PreviewDrawer({
+  selection,
+  onClose,
+}: {
+  selection: PreviewSelection | null
+  onClose: () => void
+}) {
+  const dialogRef = useRef<HTMLElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!selection) return undefined
@@ -705,7 +785,7 @@ function PreviewDrawer({ selection, onClose }) {
     document.body.style.overflow = 'hidden'
     closeRef.current?.focus()
 
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
@@ -713,7 +793,7 @@ function PreviewDrawer({ selection, onClose }) {
       }
 
       if (event.key !== 'Tab') return
-      const focusable = dialogRef.current?.querySelectorAll(
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
         'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
       )
       if (!focusable?.length) return
@@ -737,10 +817,12 @@ function PreviewDrawer({ selection, onClose }) {
     }
   }, [onClose, selection])
 
-  if (!selection || !item) return null
+  if (!selection) return null
 
-  const vendor = isVendor ? item : item.vendor
-  const products = isVendor ? item.products : []
+  const selectedVendor = selection.type === 'vendor' ? selection.item : null
+  const selectedProduct = selection.type === 'product' ? selection.item : null
+  const vendor = selectedVendor ?? selectedProduct?.vendor ?? null
+  const products = selectedVendor?.products ?? []
 
   return (
     <div className="preview-drawer" role="presentation">
@@ -756,14 +838,14 @@ function PreviewDrawer({ selection, onClose }) {
           <span><MapPin size={14} /> Neighbourhood preview</span>
           <button ref={closeRef} type="button" onClick={onClose} aria-label="Close preview"><X size={20} /></button>
         </div>
-        {isVendor ? (
+        {selectedVendor ? (
           <>
-            <div className="preview-drawer__banner"><MediaWithFallback item={item} type="banner" /></div>
+            <div className="preview-drawer__banner"><MediaWithFallback item={selectedVendor} type="banner" /></div>
             <div className="preview-drawer__identity">
-              <div className="preview-drawer__logo"><MediaWithFallback item={item} /></div>
-              <span className="preview-status"><Check size={12} /> {item.status === 'ACTIVE' ? 'Available nearby' : item.status}</span>
+              <div className="preview-drawer__logo"><MediaWithFallback item={selectedVendor} /></div>
+              <span className="preview-status"><Check size={12} /> {selectedVendor.status === 'ACTIVE' ? 'Available nearby' : selectedVendor.status}</span>
             </div>
-            <h2 id="preview-title">{item.name}</h2>
+            <h2 id="preview-title">{selectedVendor.name}</h2>
             <p>Explore a glimpse of this local business. Full storefront details, pricing and ordering will be available in the Mithra Direct experience.</p>
             <div className="preview-drawer__section">
               <div className="preview-drawer__heading"><strong>Popular picks</strong><span>{products.length}</span></div>
@@ -772,7 +854,7 @@ function PreviewDrawer({ selection, onClose }) {
                   {products.map((product) => (
                     <div key={product.id}>
                       <ProductArtwork product={product} />
-                      <div><strong>{product.name}</strong><span>From {item.name}</span></div>
+                      <div><strong>{product.name}</strong><span>From {selectedVendor.name}</span></div>
                     </div>
                   ))}
                 </div>
@@ -783,9 +865,9 @@ function PreviewDrawer({ selection, onClose }) {
           </>
         ) : (
           <>
-            <div className="preview-product-hero"><ProductArtwork product={item} /></div>
+            <div className="preview-product-hero"><ProductArtwork product={selectedProduct!} /></div>
             <span className="preview-status"><Sparkles size={12} /> Popular nearby</span>
-            <h2 id="preview-title">{item.name}</h2>
+            <h2 id="preview-title">{selectedProduct!.name}</h2>
             <p>This local pick is available from <strong>{vendor?.name || 'a neighbourhood business'}</strong>. Product details and ordering will be available in the full storefront.</p>
             {vendor && (
               <div className="preview-vendor-chip">
@@ -805,7 +887,13 @@ function PreviewDrawer({ selection, onClose }) {
   )
 }
 
-function DiscoveryError({ error, onRetry }) {
+function DiscoveryError({
+  error,
+  onRetry,
+}: {
+  error: DiscoveryRequestError
+  onRetry: () => void
+}) {
   return (
     <div className="discovery-error" role="alert">
       <span><SearchX size={24} /></span>
@@ -819,7 +907,7 @@ function DiscoveryError({ error, onRetry }) {
 }
 
 export default function DiscoverySection() {
-  const sectionRef = useRef(null)
+  const sectionRef = useRef<HTMLElement>(null)
   const [query, setQuery] = useState(defaultQuery)
   const [activePlace, setActivePlace] = useState(defaultPlace)
   const [searchText, setSearchText] = useState(defaultPlace.label)
@@ -829,7 +917,7 @@ export default function DiscoverySection() {
   const [isApplyingPlace, setIsApplyingPlace] = useState(false)
   const [locationError, setLocationError] = useState('')
   const [geoStatus, setGeoStatus] = useState('idle')
-  const [selection, setSelection] = useState(null)
+  const [selection, setSelection] = useState<PreviewSelection | null>(null)
   const [showSampleOffers, setShowSampleOffers] = useState(true)
   const { data, error, refresh, isLoading, isRefreshing } = useHomeDiscovery(query)
   const { suggestions, isSearching, error: searchError } = usePlaceSearch(
@@ -861,7 +949,7 @@ export default function DiscoverySection() {
     setHighlightedIndex(suggestions.length ? 0 : -1)
   }, [suggestions])
 
-  const applyPlace = (place) => {
+  const applyPlace = (place: LocationPlace) => {
     setActivePlace(place)
     setSearchText(place.label)
     setQuery({
@@ -875,7 +963,7 @@ export default function DiscoverySection() {
     setHighlightedIndex(-1)
   }
 
-  const selectPlace = async (place) => {
+  const selectPlace = async (place: LocationPlace) => {
     if (isApplyingPlace) return
     setIsApplyingPlace(true)
     setLocationError('')
@@ -896,9 +984,15 @@ export default function DiscoverySection() {
       }
       applyPlace(resolvedPlace)
     } catch (placeError) {
+      const message = placeError instanceof Error ? placeError.message : ''
+      const userMessage = typeof placeError === 'object' &&
+        placeError !== null &&
+        'userMessage' in placeError
+        ? String(placeError.userMessage)
+        : ''
       setLocationError(
-        placeError?.userMessage ||
-        placeError?.message ||
+        userMessage ||
+        message ||
         'Choose a more specific address that includes a six-digit pincode.',
       )
     } finally {
@@ -932,15 +1026,20 @@ export default function DiscoverySection() {
           })
           setGeoStatus('success')
         } catch (geocodeError) {
+          const userMessage = typeof geocodeError === 'object' &&
+            geocodeError !== null &&
+            'userMessage' in geocodeError
+            ? String(geocodeError.userMessage)
+            : ''
           setLocationError(
-            geocodeError?.userMessage ||
+            userMessage ||
             'We found your coordinates but could not resolve a matching address and pincode.',
           )
           setGeoStatus('error')
         }
       },
       (geoError) => {
-        const messages = {
+        const messages: Record<number, string> = {
           1: 'Location permission was denied. Search for an area instead.',
           2: 'Your current location could not be determined.',
           3: 'Finding your location took too long. Please try again.',
@@ -952,7 +1051,13 @@ export default function DiscoverySection() {
     )
   }
 
-  const openPreview = (item, type, trigger) => setSelection({ item, type, trigger })
+  const openPreview: PreviewHandler = (item, type, trigger) => {
+    if (type === 'vendor') {
+      setSelection({ item: item as Vendor, type, trigger })
+    } else {
+      setSelection({ item: item as Product, type, trigger })
+    }
+  }
   const closePreview = () => setSelection(null)
 
   return (

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { searchPlaces } from '../api/locationApi'
+import type { LocationPlace } from '../api/locationApi'
 
-export function usePlaceSearch(searchText, enabled = true) {
-  const [suggestions, setSuggestions] = useState([])
+export function usePlaceSearch(searchText: string, enabled = true) {
+  const [suggestions, setSuggestions] = useState<LocationPlace[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState('')
   const requestId = useRef(0)
@@ -28,11 +29,16 @@ export function usePlaceSearch(searchText, enabled = true) {
           if (currentRequest !== requestId.current) return
           setSuggestions(places)
         })
-        .catch((searchError) => {
+        .catch((searchError: unknown) => {
           if (currentRequest !== requestId.current) return
           setSuggestions([])
+          const userMessage = typeof searchError === 'object' &&
+            searchError !== null &&
+            'userMessage' in searchError
+            ? String(searchError.userMessage)
+            : ''
           setError(
-            searchError?.userMessage ||
+            userMessage ||
             'Location search is temporarily unavailable.',
           )
         })

@@ -7,6 +7,7 @@ import { homeFixture } from '../test/homeFixture'
 import { useHomeDiscovery } from '../hooks/useHomeDiscovery'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
 import { reverseGeocode, warmLocationService } from '../api/locationApi'
+import type { LocationPlace } from '../api/locationApi'
 
 vi.mock('../hooks/useHomeDiscovery', () => ({
   useHomeDiscovery: vi.fn(),
@@ -22,23 +23,53 @@ vi.mock('../api/locationApi', () => ({
 }))
 
 const normalizedData = normalizeHomeResponse(homeFixture)
+const useHomeDiscoveryMock = vi.mocked(useHomeDiscovery)
+const usePlaceSearchMock = vi.mocked(usePlaceSearch)
+const reverseGeocodeMock = vi.mocked(reverseGeocode)
+const warmLocationServiceMock = vi.mocked(warmLocationService)
+
+const hyderabadPlace: LocationPlace = {
+  id: 'place-1',
+  placeId: 'place-1',
+  name: 'Hyderabad',
+  label: 'Hyderabad, Telangana',
+  detail: 'Telangana · 500001',
+  postcode: '500001',
+  latitude: 17.385,
+  longitude: 78.4867,
+  countryCode: 'IN',
+  locationType: 'APPROXIMATE',
+}
+
+const currentPlace: LocationPlace = {
+  id: 'current-place',
+  placeId: 'current-place',
+  name: 'Siddipet',
+  label: 'Siddipet, Telangana',
+  detail: 'Telangana · 502103',
+  postcode: '502103',
+  latitude: 18.100525,
+  longitude: 78.848279,
+  countryCode: 'IN',
+  locationType: 'APPROXIMATE',
+}
 
 describe('DiscoverySection', () => {
   beforeEach(() => {
-    useHomeDiscovery.mockReturnValue({
+    useHomeDiscoveryMock.mockReturnValue({
       data: normalizedData,
       error: null,
       refresh: vi.fn(),
       isLoading: false,
       isRefreshing: false,
     })
-    usePlaceSearch.mockReturnValue({
+    usePlaceSearchMock.mockReturnValue({
       suggestions: [],
       isSearching: false,
       error: '',
     })
-    reverseGeocode.mockReset()
-    warmLocationService.mockResolvedValue()
+    reverseGeocodeMock.mockReset()
+    warmLocationServiceMock.mockResolvedValue()
   })
 
   it('renders live counts, an honest empty state, and a sample offers preview', async () => {
@@ -48,17 +79,18 @@ describe('DiscoverySection', () => {
     const hero = screen.getByRole('heading', {
       level: 1,
       name: /Everything local, closer to home\./i,
-    }).closest('.neighbourhood-hero')
-    expect(within(hero).getByRole('combobox', {
+    }).closest<HTMLElement>('.neighbourhood-hero')
+    expect(hero).not.toBeNull()
+    expect(within(hero!).getByRole('combobox', {
       name: 'Search for an area or place',
     })).toBeInTheDocument()
-    expect(within(hero).getByRole('img', {
+    expect(within(hero!).getByRole('img', {
       name: /customer orders online while neighbourhood grocery, dairy, bakery, pharmacy and tiffin vendors prepare deliveries/i,
     })).toBeInTheDocument()
-    expect(within(hero).queryByRole('img', {
+    expect(within(hero!).queryByRole('img', {
       name: /local shopkeeper hands a bag of fresh groceries/i,
     })).not.toBeInTheDocument()
-    expect(within(hero).queryByLabelText('Featured neighbourhood businesses')).not.toBeInTheDocument()
+    expect(within(hero!).queryByLabelText('Featured neighbourhood businesses')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', {
       name: 'Shops worth knowing, close by.',
     })).toBeInTheDocument()
@@ -92,7 +124,7 @@ describe('DiscoverySection', () => {
   })
 
   it('shows a layout-matched storefront skeleton while discovery data loads', () => {
-    useHomeDiscovery.mockReturnValue({
+    useHomeDiscoveryMock.mockReturnValue({
       data: null,
       error: null,
       refresh: vi.fn(),
@@ -123,7 +155,7 @@ describe('DiscoverySection', () => {
 
     expect(fallbackCopy).toBeInTheDocument()
     expect(fallbackCopy).toContainElement(
-      within(fallbackCopy).getByText('Kammani - Authentic Telangana Snacks'),
+      within(fallbackCopy as HTMLElement).getByText('Kammani - Authentic Telangana Snacks'),
     )
     expect(within(carousel).queryByText(/Discover what is available nearby/i)).not.toBeInTheDocument()
 
@@ -156,7 +188,7 @@ describe('DiscoverySection', () => {
         }],
       },
     }
-    useHomeDiscovery.mockReturnValue({
+    useHomeDiscoveryMock.mockReturnValue({
       data: normalizeHomeResponse(payload),
       error: null,
       refresh: vi.fn(),
@@ -187,16 +219,8 @@ describe('DiscoverySection', () => {
   })
 
   it('selects an area-search suggestion and updates geo query values', async () => {
-    usePlaceSearch.mockReturnValue({
-      suggestions: [{
-        id: 'place-1',
-        name: 'Hyderabad',
-        label: 'Hyderabad, Telangana',
-        detail: 'Telangana · 500001',
-        postcode: '500001',
-        latitude: 17.385,
-        longitude: 78.4867,
-      }],
+    usePlaceSearchMock.mockReturnValue({
+      suggestions: [hyderabadPlace],
       isSearching: false,
       error: '',
     })
@@ -217,16 +241,8 @@ describe('DiscoverySection', () => {
   })
 
   it('supports keyboard navigation and immediate location selection', async () => {
-    usePlaceSearch.mockReturnValue({
-      suggestions: [{
-        id: 'place-1',
-        name: 'Hyderabad',
-        label: 'Hyderabad, Telangana',
-        detail: 'Telangana · 500001',
-        postcode: '500001',
-        latitude: 17.385,
-        longitude: 78.4867,
-      }],
+    usePlaceSearchMock.mockReturnValue({
+      suggestions: [hyderabadPlace],
       isSearching: false,
       error: '',
     })
@@ -251,20 +267,12 @@ describe('DiscoverySection', () => {
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
       value: {
-        getCurrentPosition: (success) => success({
+        getCurrentPosition: (success: PositionCallback) => success({
           coords: { latitude: 18.100525, longitude: 78.848279 },
-        }),
+        } as GeolocationPosition),
       },
     })
-    reverseGeocode.mockResolvedValue({
-      id: 'current-place',
-      name: 'Siddipet',
-      label: 'Siddipet, Telangana',
-      detail: 'Telangana · 502103',
-      postcode: '502103',
-      latitude: 18.100525,
-      longitude: 78.848279,
-    })
+    reverseGeocodeMock.mockResolvedValue(currentPlace)
     const user = userEvent.setup()
     render(<DiscoverySection />)
 
@@ -280,12 +288,12 @@ describe('DiscoverySection', () => {
     Object.defineProperty(navigator, 'geolocation', {
       configurable: true,
       value: {
-        getCurrentPosition: (success) => success({
+        getCurrentPosition: (success: PositionCallback) => success({
           coords: { latitude: 17.385, longitude: 78.4867 },
-        }),
+        } as GeolocationPosition),
       },
     })
-    reverseGeocode.mockRejectedValue({
+    reverseGeocodeMock.mockRejectedValue({
       userMessage: 'Choose a more specific address that includes a six-digit pincode.',
     })
     const user = userEvent.setup()
@@ -308,7 +316,7 @@ describe('DiscoverySection', () => {
     const vendorButtons = screen.getAllByRole('button', {
       name: /preview kammani/i,
     })
-    await user.click(vendorButtons.at(-1))
+    await user.click(vendorButtons.at(-1)!)
 
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByRole('heading', { name: /kammani/i })).toBeInTheDocument()

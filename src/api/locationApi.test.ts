@@ -40,12 +40,12 @@ function googleResult({
 beforeEach(() => {
   searchByTextMock.mockReset()
   fetchMock.mockReset()
-  global.fetch = fetchMock
+  globalThis.fetch = fetchMock
   window.google = {
     maps: {
       importLibrary: vi.fn().mockResolvedValue({
         Place: class {
-          static searchByText(request) {
+          static searchByText(request: unknown) {
             return searchByTextMock(request)
           }
         },

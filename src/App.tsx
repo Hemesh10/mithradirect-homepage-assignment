@@ -1,4 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import {
+  createElement,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ElementType,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import {
   ArrowRight,
   CaretRight,
@@ -25,7 +34,7 @@ import {
 import bakerImage from './assets/local-baker-orders.webp'
 import dairySubscriptionImage from './assets/dairy-subscription-delivery.webp'
 
-function BrandMark({ light = false }) {
+function BrandMark({ light = false }: { light?: boolean }) {
   return (
     <a className={`brand ${light ? 'brand--light' : ''}`} href="#top" aria-label="Mithra Direct home">
       <span className="brand__mark" aria-hidden="true">
@@ -40,8 +49,15 @@ function BrandMark({ light = false }) {
   )
 }
 
-function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
-  const ref = useRef(null)
+interface RevealProps {
+  children: ReactNode
+  className?: string
+  delay?: number
+  as?: ElementType
+}
+
+function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }: RevealProps) {
+  const ref = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const node = ref.current
@@ -64,14 +80,18 @@ function Reveal({ children, className = '', delay = 0, as: Tag = 'div' }) {
     return () => observer.disconnect()
   }, [])
 
-  return (
-    <Tag
-      ref={ref}
-      className={`reveal ${className}`}
-      style={{ '--reveal-delay': `${delay}ms` }}
-    >
-      {children}
-    </Tag>
+  const style = {
+    '--reveal-delay': `${delay}ms`,
+  } as CSSProperties
+
+  return createElement(
+    Tag,
+    {
+      ref,
+      className: `reveal ${className}`,
+      style,
+    },
+    children,
   )
 }
 
@@ -81,7 +101,7 @@ function Header() {
   useEffect(() => {
     if (!open) return undefined
 
-    const onKeyDown = (event) => {
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
 
@@ -319,7 +339,7 @@ function Waitlist() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
-  const onSubmit = (event) => {
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
 

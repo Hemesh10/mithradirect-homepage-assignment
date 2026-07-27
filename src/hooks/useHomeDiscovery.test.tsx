@@ -2,10 +2,24 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useHomeDiscovery } from './useHomeDiscovery'
 import { fetchHomeDiscovery } from '../api/homeApi'
+import type { HomeDiscoveryData } from '../api/homeAdapter'
 
 vi.mock('../api/homeApi', () => ({
   fetchHomeDiscovery: vi.fn(),
 }))
+
+const fetchHomeDiscoveryMock = vi.mocked(fetchHomeDiscovery)
+
+function makeData(vendorCount: number): HomeDiscoveryData {
+  return {
+    featuredVendors: [],
+    vendors: [],
+    products: [],
+    offers: [],
+    resultSource: 'TEST',
+    summary: { vendorCount, productCount: 0 },
+  }
+}
 
 const query = {
   serviceArea: '502103',
@@ -15,26 +29,26 @@ const query = {
 
 describe('useHomeDiscovery', () => {
   beforeEach(() => {
-    fetchHomeDiscovery.mockReset()
+    fetchHomeDiscoveryMock.mockReset()
   })
 
   it('moves from loading to a successful data state', async () => {
-    fetchHomeDiscovery.mockResolvedValue({ summary: { vendorCount: 2 } })
+    fetchHomeDiscoveryMock.mockResolvedValue(makeData(2))
 
     const { result } = renderHook(() => useHomeDiscovery(query))
     expect(result.current.isLoading).toBe(true)
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
-    expect(result.current.data.summary.vendorCount).toBe(2)
+    expect(result.current.data?.summary.vendorCount).toBe(2)
     expect(result.current.error).toBeNull()
   })
 
   it('retains existing data while a refresh is in flight', async () => {
-    let resolveRefresh
-    fetchHomeDiscovery
-      .mockResolvedValueOnce({ summary: { vendorCount: 2 } })
+    let resolveRefresh: ((data: HomeDiscoveryData) => void) | undefined
+    fetchHomeDiscoveryMock
+      .mockResolvedValueOnce(makeData(2))
       .mockImplementationOnce(
-        () => new Promise((resolve) => {
+        () => new Promise<HomeDiscoveryData>((resolve) => {
           resolveRefresh = resolve
         }),
       )
@@ -44,18 +58,19 @@ describe('useHomeDiscovery', () => {
 
     act(() => result.current.refresh())
     await waitFor(() => expect(result.current.isRefreshing).toBe(true))
-    expect(result.current.data.summary.vendorCount).toBe(2)
+    expect(result.current.data?.summary.vendorCount).toBe(2)
 
-    await act(async () => resolveRefresh({ summary: { vendorCount: 3 } }))
+    await act(async () => resolveRefresh?.(makeData(3)))
     await waitFor(() => expect(result.current.isRefreshing).toBe(false))
-    expect(result.current.data.summary.vendorCount).toBe(3)
+    expect(result.current.data?.summary.vendorCount).toBe(3)
   })
 
   it('aborts the previous request when the location changes', async () => {
-    const signals = []
-    fetchHomeDiscovery.mockImplementation(
-      (_query, { signal }) =>
-        new Promise((resolve, reject) => {
+    const signals: AbortSignal[] = []
+    fetchHomeDiscoveryMock.mockImplementation(
+      (_query, { signal } = {}) =>
+        new Promise<HomeDiscoveryData>((_resolve, reject) => {
+          if (!signal) throw new Error('Expected an abort signal')
           signals.push(signal)
           signal.addEventListener('abort', () => {
             const error = new Error('aborted')
@@ -71,6 +86,6 @@ describe('useHomeDiscovery', () => {
     )
 
     rerender({ activeQuery: { ...query, serviceArea: '500001' } })
-    expect(signals[0].aborted).toBe(true)
+    expect(signals[0]?.aborted).toBe(true)
   })
 })

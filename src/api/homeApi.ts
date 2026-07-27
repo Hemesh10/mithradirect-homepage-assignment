@@ -1,10 +1,20 @@
-import { normalizeHomeResponse } from './homeAdapter'
+import {
+  normalizeHomeResponse,
+  type HomeDiscoveryData,
+  type HomeQuery,
+} from './homeAdapter'
 
 const DEFAULT_HOME_API_URL =
   'https://subscriptionapp-wgf8.onrender.com/api/v1/home'
 
 export class HomeApiError extends Error {
-  constructor(message, { status = 0, userMessage = '' } = {}) {
+  status: number
+  userMessage: string
+
+  constructor(
+    message: string,
+    { status = 0, userMessage = '' }: { status?: number, userMessage?: string } = {},
+  ) {
     super(message)
     this.name = 'HomeApiError'
     this.status = status
@@ -12,11 +22,14 @@ export class HomeApiError extends Error {
   }
 }
 
-/**
- * @param {import('./homeAdapter').HomeQuery} query
- * @param {{signal?: AbortSignal}} options
- */
-export async function fetchHomeDiscovery(query, { signal } = {}) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+export async function fetchHomeDiscovery(
+  query: HomeQuery,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<HomeDiscoveryData> {
   const endpoint = import.meta.env.VITE_HOME_API_BASE_URL || DEFAULT_HOME_API_URL
   const url = new URL(endpoint)
   url.searchParams.set('service_area', query.serviceArea)
@@ -30,13 +43,13 @@ export async function fetchHomeDiscovery(query, { signal } = {}) {
       headers: { Accept: 'application/json' },
     })
   } catch (error) {
-    if (error?.name === 'AbortError') throw error
+    if (error instanceof Error && error.name === 'AbortError') throw error
     throw new HomeApiError('The neighbourhood service could not be reached.', {
       userMessage: 'We couldn’t reach the neighbourhood service. Check your connection and try again.',
     })
   }
 
-  let payload
+  let payload: unknown
   try {
     payload = await response.json()
   } catch {
@@ -46,14 +59,19 @@ export async function fetchHomeDiscovery(query, { signal } = {}) {
     })
   }
 
-  if (!response.ok || payload?.success === false) {
+  if (!response.ok || (isRecord(payload) && payload.success === false)) {
+    const failureReason = isRecord(payload) && typeof payload.failure_reason === 'string'
+      ? payload.failure_reason
+      : `The neighbourhood request failed with status ${response.status}.`
+    const userMessage = isRecord(payload) && typeof payload.user_message === 'string'
+      ? payload.user_message
+      : 'We couldn’t load this neighbourhood right now. Please check the location and try again.'
+
     throw new HomeApiError(
-      payload?.failure_reason || `The neighbourhood request failed with status ${response.status}.`,
+      failureReason,
       {
         status: response.status,
-        userMessage:
-          payload?.user_message ||
-          'We couldn’t load this neighbourhood right now. Please check the location and try again.',
+        userMessage,
       },
     )
   }
@@ -61,7 +79,7 @@ export async function fetchHomeDiscovery(query, { signal } = {}) {
   try {
     return normalizeHomeResponse(payload)
   } catch (error) {
-    throw new HomeApiError(error.message, {
+    throw new HomeApiError(error instanceof Error ? error.message : String(error), {
       status: response.status,
       userMessage: 'Neighbourhood data is temporarily unavailable. Please try again.',
     })

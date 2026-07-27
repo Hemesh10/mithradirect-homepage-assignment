@@ -1,80 +1,131 @@
 const fallbackColors = ['green', 'coral', 'yellow', 'purple', 'blue']
 
-/**
- * @typedef {Object} HomeQuery
- * @property {string} serviceArea
- * @property {number} latitude
- * @property {number} longitude
- */
+export interface HomeQuery {
+  serviceArea: string
+  latitude: number
+  longitude: number
+}
 
-/**
- * @typedef {Object} Vendor
- * @property {number} id
- * @property {number} vendorId
- * @property {string} name
- * @property {string} status
- * @property {string|null} bannerUrl
- * @property {string|null} thumbnailUrl
- * @property {string} initials
- * @property {string} fallbackColor
- * @property {Product[]} products
- */
+export interface Vendor {
+  id: number
+  vendorId: number
+  name: string
+  status: string
+  bannerUrl: string | null
+  thumbnailUrl: string | null
+  initials: string
+  fallbackColor: string
+  products: Product[]
+}
 
-/**
- * @typedef {Object} Product
- * @property {number} id
- * @property {number} vendorId
- * @property {string} name
- * @property {string|null} imageUrl
- * @property {boolean} usePlaceholder
- * @property {Vendor|null} vendor
- */
+export interface Product {
+  id: number
+  vendorId: number
+  name: string
+  imageUrl: string | null
+  usePlaceholder: boolean
+  fallbackColor: string
+  vendor: Vendor | null
+}
 
-/**
- * @typedef {Object} Offer
- * @property {number|string} id
- * @property {string} title
- * @property {string} description
- * @property {string} discountLabel
- * @property {string} code
- * @property {string} expiresAt
- * @property {string} vendorName
- * @property {string} fallbackColor
- * @property {number} vendorId
- * @property {number} productId
- * @property {Vendor|null} vendor
- * @property {Product|null} product
- */
+export interface Offer {
+  id: number | string
+  title: string
+  description: string
+  discountLabel: string
+  code: string
+  expiresAt: string
+  vendorName: string
+  fallbackColor: string
+  vendorId: number
+  productId: number
+  vendor: Vendor | null
+  product: Product | null
+}
 
-/**
- * @typedef {Object} HomeDiscoveryData
- * @property {Vendor[]} featuredVendors
- * @property {Vendor[]} vendors
- * @property {Product[]} products
- * @property {Offer[]} offers
- * @property {string} resultSource
- * @property {{vendorCount: number, productCount: number}} summary
- */
+export interface HomeDiscoveryData {
+  featuredVendors: Vendor[]
+  vendors: Vendor[]
+  products: Product[]
+  offers: Offer[]
+  resultSource: string
+  summary: {
+    vendorCount: number
+    productCount: number
+  }
+}
 
-function cleanString(value) {
+interface RawVendor {
+  id?: unknown
+  vendor_id?: unknown
+  business_name?: unknown
+  status?: unknown
+  banner_image?: unknown
+  thumbnail_image?: unknown
+}
+
+interface RawProduct {
+  id?: unknown
+  vendor_id?: unknown
+  name?: unknown
+  image_path?: unknown
+}
+
+interface RawOffer {
+  id?: number | string
+  offer_id?: number | string
+  title?: unknown
+  offer_title?: unknown
+  name?: unknown
+  description?: unknown
+  offer_description?: unknown
+  details?: unknown
+  business_name?: unknown
+  vendor_name?: unknown
+  vendor_id?: unknown
+  business_id?: unknown
+  product_id?: unknown
+  discount_percentage?: unknown
+  discount_percent?: unknown
+  discount?: unknown
+  code?: unknown
+  offer_code?: unknown
+  coupon_code?: unknown
+  expiry_date?: unknown
+  expires_at?: unknown
+  valid_until?: unknown
+  valid_till?: unknown
+  vendor?: RawVendor
+  product?: RawProduct & { product_id?: unknown }
+}
+
+interface RawHomeData {
+  new_vendors: RawVendor[]
+  top_products: RawProduct[]
+  carousal: RawVendor[]
+  offers?: RawOffer[]
+  result_source?: unknown
+}
+
+function cleanString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function cleanDisplayString(value) {
+function cleanDisplayString(value: unknown): string {
   return cleanString(value).replace(/[—–]/g, '-')
 }
 
-function imageUrl(value) {
+function imageUrl(value: unknown): string | null {
   const cleaned = cleanString(value)
   return cleaned || null
 }
 
-function toNumber(value) {
+function toNumber(value: unknown): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function initials(name) {
+function initials(name: string): string {
   const words = name
     .replace(/\([^)]*\)/g, '')
     .split(/[\s—–-]+/)
@@ -88,7 +139,7 @@ function initials(name) {
     .toUpperCase()
 }
 
-function normalizeVendor(rawVendor, index) {
+function normalizeVendor(rawVendor: RawVendor, index: number): Vendor {
   const name = cleanDisplayString(rawVendor?.business_name) || 'Local business'
   const vendorId = toNumber(rawVendor?.vendor_id ?? rawVendor?.id)
 
@@ -105,7 +156,7 @@ function normalizeVendor(rawVendor, index) {
   }
 }
 
-function normalizeDiscount(value) {
+function normalizeDiscount(value: unknown): string {
   const cleaned = cleanString(value)
   if (!cleaned && typeof value !== 'number') return ''
   if (cleaned.toLowerCase().includes('off')) return cleaned
@@ -115,7 +166,7 @@ function normalizeDiscount(value) {
   return Number.isFinite(amount) ? `${amount}% off` : cleaned
 }
 
-function normalizeOffer(rawOffer, index) {
+function normalizeOffer(rawOffer: RawOffer, index: number): Offer {
   const title = cleanDisplayString(
     rawOffer?.title ?? rawOffer?.offer_title ?? rawOffer?.name,
   )
@@ -162,33 +213,30 @@ function normalizeOffer(rawOffer, index) {
   }
 }
 
-function assertPayload(payload) {
+function assertPayload(payload: unknown): RawHomeData {
   if (!payload || typeof payload !== 'object') {
     throw new TypeError('The home response is not an object.')
   }
 
-  const data = payload.data
+  const data = (payload as { data?: unknown }).data
   if (!data || typeof data !== 'object') {
     throw new TypeError('The home response does not contain a data object.')
   }
 
   for (const field of ['new_vendors', 'top_products', 'carousal']) {
-    if (!Array.isArray(data[field])) {
+    if (!Array.isArray((data as Record<string, unknown>)[field])) {
       throw new TypeError(`The home response field "${field}" is not an array.`)
     }
   }
 
-  return data
+  return data as unknown as RawHomeData
 }
 
 /**
  * Converts the backend response into stable, presentation-ready home data.
  * Raw backend naming and inconsistent field types are contained here.
- *
- * @param {unknown} payload
- * @returns {HomeDiscoveryData}
  */
-export function normalizeHomeResponse(payload) {
+export function normalizeHomeResponse(payload: unknown): HomeDiscoveryData {
   const data = assertPayload(payload)
   const vendors = data.new_vendors.map(normalizeVendor)
   const vendorMap = new Map(vendors.map((vendor) => [vendor.vendorId, vendor]))
