@@ -4,7 +4,8 @@ import {
   type HomeQuery,
 } from './homeAdapter'
 
-const DEFAULT_HOME_API_URL = '/api/home'
+const DEFAULT_HOME_API_URL =
+  'https://subscriptionapp-wgf8.onrender.com/api/v1/home'
 
 export class HomeApiError extends Error {
   status: number
@@ -29,10 +30,8 @@ export async function fetchHomeDiscovery(
   query: HomeQuery,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<HomeDiscoveryData> {
-  const endpoint = import.meta.env.PROD
-    ? DEFAULT_HOME_API_URL
-    : import.meta.env.VITE_HOME_API_BASE_URL || DEFAULT_HOME_API_URL
-  const url = new URL(endpoint, window.location.origin)
+  const endpoint = import.meta.env.VITE_HOME_API_BASE_URL || DEFAULT_HOME_API_URL
+  const url = new URL(endpoint)
   url.searchParams.set('service_area', query.serviceArea)
   url.searchParams.set('latitude', String(query.latitude))
   url.searchParams.set('longitude', String(query.longitude))

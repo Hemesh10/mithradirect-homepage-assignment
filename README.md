@@ -59,17 +59,11 @@ npm install
 Create a `.env.local` file in the project root:
 
 ```env
-VITE_HOME_API_BASE_URL=/api/home
+VITE_HOME_API_BASE_URL=https://subscriptionapp-wgf8.onrender.com/api/v1/home
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
-Production builds always use the same-origin `/api/home` proxy. Vite proxies
-that path during local development and preview, while Vercel serves
-`api/home.ts` as a serverless function in deployments. This avoids depending on
-browser CORS access to the employer-owned API. A Google Maps API key is required
-for place search and current-location reverse geocoding. The key should have the
-required Maps and Geocoding APIs enabled and should be restricted to the
-appropriate browser origins.
+`VITE_HOME_API_BASE_URL` is optional because the application includes the assignment API as its default endpoint. A Google Maps API key is required for place search and current-location reverse geocoding. The key should have the required Maps and Geocoding APIs enabled and should be restricted to the appropriate browser origins.
 
 Start the development server:
 
@@ -114,8 +108,6 @@ Serves the production build locally for final verification.
 ## Project Structure
 
 ```text
-api/
-└── home.ts       # Same-origin Vercel proxy for the assignment API
 src/
 ├── api/          # API requests, response normalization, and location services
 ├── assets/       # Optimized landing-page images
@@ -177,3 +169,4 @@ This project demonstrates:
 - Designing resilient UI states around asynchronous requests
 - Creating a responsive customer-facing commerce experience
 - Testing behavior at the API, hook, and component levels
+
