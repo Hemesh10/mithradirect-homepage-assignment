@@ -4,8 +4,10 @@ import {
   type HomeQuery,
 } from './homeAdapter'
 
-const DEFAULT_HOME_API_URL =
-  'https://subscriptionapp-wgf8.onrender.com/api/v1/home'
+// Same-origin proxy by default: the upstream API's CORS allowlist only permits
+// localhost, so browsers on a deployed origin are rejected. Override with
+// VITE_HOME_API_BASE_URL to call an absolute URL directly.
+const DEFAULT_HOME_API_URL = '/api/home'
 
 export class HomeApiError extends Error {
   status: number
@@ -31,7 +33,7 @@ export async function fetchHomeDiscovery(
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<HomeDiscoveryData> {
   const endpoint = import.meta.env.VITE_HOME_API_BASE_URL || DEFAULT_HOME_API_URL
-  const url = new URL(endpoint)
+  const url = new URL(endpoint, window.location.origin)
   url.searchParams.set('service_area', query.serviceArea)
   url.searchParams.set('latitude', String(query.latitude))
   url.searchParams.set('longitude', String(query.longitude))

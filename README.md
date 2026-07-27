@@ -59,11 +59,25 @@ npm install
 Create a `.env.local` file in the project root:
 
 ```env
-VITE_HOME_API_BASE_URL=https://subscriptionapp-wgf8.onrender.com/api/v1/home
 VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
-`VITE_HOME_API_BASE_URL` is optional because the application includes the assignment API as its default endpoint. A Google Maps API key is required for place search and current-location reverse geocoding. The key should have the required Maps and Geocoding APIs enabled and should be restricted to the appropriate browser origins.
+### Home API and CORS
+
+The assignment API restricts CORS to localhost origins, so a deployed browser
+origin is rejected with a 403 and no `Access-Control-Allow-Origin` header. The
+app therefore requests the same-origin path `/api/home`, which is served by:
+
+- `api/home.ts` — a Vercel serverless function in deployments
+- the Vite `server`/`preview` proxy during local development
+
+Because the proxy calls the API server-to-server, no browser `Origin` header is
+sent and CORS never applies. `VITE_HOME_API_BASE_URL` is optional and overrides
+this path with an absolute URL; leave it unset unless the upstream API
+allowlists your deployed origin. A Google Maps API key is required for place
+search and current-location reverse geocoding. The key should have the required
+Maps and Geocoding APIs enabled and should be restricted to the appropriate
+browser origins.
 
 Start the development server:
 
@@ -108,6 +122,8 @@ Serves the production build locally for final verification.
 ## Project Structure
 
 ```text
+api/
+└── home.ts       # Same-origin Vercel proxy for the assignment API
 src/
 ├── api/          # API requests, response normalization, and location services
 ├── assets/       # Optimized landing-page images
