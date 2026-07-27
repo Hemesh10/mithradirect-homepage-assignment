@@ -118,7 +118,6 @@ h3 {
   text-wrap: balance;
 }
 
-.hero__eyebrow,
 .section-label,
 .footer__links strong,
 .footer__bottom {
@@ -337,87 +336,6 @@ p {
 
 .mobile-nav {
   display: none;
-}
-
-.hero {
-  display: flex;
-  min-height: calc(100dvh - 72px);
-  align-items: center;
-  padding: clamp(36px, 6vh, 64px) 0;
-  overflow: hidden;
-  background: var(--canvas-warm);
-}
-
-.hero__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.84fr) minmax(420px, 1.16fr);
-  align-items: center;
-  gap: clamp(48px, 7vw, 108px);
-}
-
-.hero__content {
-  min-width: 0;
-  max-width: 620px;
-}
-
-.hero__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  color: var(--primary);
-  font-size: 13px;
-  font-weight: 720;
-  letter-spacing: 0.02em;
-}
-
-.hero h1 {
-  max-width: 680px;
-  margin-bottom: 24px;
-  font-size: clamp(52px, 5.8vw, 80px);
-  font-weight: 700;
-  letter-spacing: -0.065em;
-  line-height: 0.98;
-}
-
-.hero__content > p {
-  max-width: 520px;
-  margin-bottom: 30px;
-  color: var(--muted);
-  font-size: clamp(17px, 1.5vw, 20px);
-  line-height: 1.55;
-}
-
-.hero__actions {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-}
-
-.hero__media {
-  position: relative;
-  height: min(68dvh, 680px);
-  min-height: 520px;
-}
-
-.hero__media::before {
-  content: '';
-  position: absolute;
-  right: -24px;
-  bottom: -24px;
-  width: 42%;
-  height: 48%;
-  border-radius: var(--radius-surface);
-  background: var(--primary-soft);
-}
-
-.hero__media img {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: var(--radius-surface);
-  object-fit: cover;
-  box-shadow: var(--shadow-elevated);
 }
 
 .section {
@@ -954,15 +872,6 @@ p {
     font-size: 13px;
   }
 
-  .hero__grid {
-    grid-template-columns: minmax(0, 0.92fr) minmax(390px, 1.08fr);
-    gap: 48px;
-  }
-
-  .hero h1 {
-    font-size: clamp(48px, 6vw, 66px);
-  }
-
   .audience__grid,
   .subscriptions__grid,
   .impact__grid {
@@ -1042,30 +951,12 @@ p {
     margin-top: 22px;
   }
 
-  .hero {
-    min-height: auto;
-  }
-
-  .hero__grid,
   .audience__grid,
   .journey__grid,
   .subscriptions__grid,
   .impact__grid,
   .waitlist__grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .hero__grid {
-    gap: 44px;
-  }
-
-  .hero__content {
-    max-width: 680px;
-  }
-
-  .hero__media {
-    height: min(62dvh, 640px);
-    min-height: 460px;
   }
 
   .audience__grid,
@@ -1111,48 +1002,6 @@ p {
     top: 66px;
     height: calc(100dvh - 66px);
     min-height: calc(100dvh - 66px);
-  }
-
-  .hero {
-    padding: 32px 0 56px;
-  }
-
-  .hero__grid {
-    gap: 34px;
-  }
-
-  .hero__eyebrow {
-    margin-bottom: 14px;
-    font-size: 12px;
-  }
-
-  .hero h1 {
-    width: 100%;
-    max-width: 340px;
-    margin-bottom: 18px;
-    font-size: clamp(43px, 14vw, 60px);
-    letter-spacing: -0.06em;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
-
-  .hero__content > p {
-    margin-bottom: 24px;
-    font-size: 16px;
-  }
-
-  .hero__actions {
-    gap: 15px;
-  }
-
-  .hero__media {
-    height: 38dvh;
-    min-height: 280px;
-  }
-
-  .hero__media::before {
-    right: -10px;
-    bottom: -10px;
   }
 
   .section {
@@ -1245,18 +1094,6 @@ p {
   .footer__bottom {
     flex-direction: column;
     gap: 7px;
-  }
-}
-
-@media (max-width: 420px) {
-  .hero__actions {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .hero__actions .button {
-    width: 100%;
   }
 }
 

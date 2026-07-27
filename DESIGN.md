@@ -190,13 +190,14 @@ The hero introduces neighbourhood commerce rather than technology.
 
 - Use white, warm white, or pale green as the background.
 - Use a navy or charcoal headline and friendly supporting copy.
-- Use a deep teal primary CTA and a white bordered secondary CTA.
-- Use authentic local-commerce imagery.
-- Hero imagery should make the digital marketplace visible while keeping neighbourhood vendors, products and delivery at the centre of the story.
-- Keep location or discovery functionality near the primary path.
+- Keep the brand promise and hero illustration static so API loading never changes the first impression.
+- Show customers ordering through a mobile or web app while neighbourhood vendors prepare orders for local delivery.
+- Keep the location picker within the primary hero path as the hero's main action.
+- Place the API-backed featured-vendor carousel in a dedicated section directly below the hero.
+- Keep storefront controls compact, place business identity outside the media, and avoid duplicating the carousel later in discovery.
 - Reinforce nearby businesses, local products, neighbourhood delivery, recurring subscriptions, and trusted vendors.
 
-Do not use dark hero backgrounds, neon text, abstract compute graphics, particle fields, network-node visuals, futuristic lighting, or technical metadata labels.
+Do not depict customers purchasing directly across a shop counter. Do not use dark hero backgrounds, neon text, abstract compute graphics, particle fields, network-node visuals, futuristic lighting, or technical metadata labels.
 
 ## Discovery experience
 

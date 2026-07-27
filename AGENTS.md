@@ -9,11 +9,23 @@ This is a Vite-powered React 19 single-page application.
 - `src/api/` owns HTTP requests and normalization of backend data.
 - `src/hooks/` contains reusable React state and request lifecycle logic.
 - `src/data.js` holds static marketing content.
+- `src/assets/` is the canonical location for landing-page images and other bundled media.
 - `src/styles.css` defines the core visual system; `src/discovery.css` styles the commerce experience.
 - Tests are colocated with their source as `*.test.js` or `*.test.jsx`. Shared fixtures and setup live in `src/test/`.
 - `dist/` is generated output and must not be edited.
 
 Keep raw API field names inside the adapter. Components should consume normalized application objects.
+
+## Asset Guidelines
+
+Store production landing-page media in `src/assets/` and import it through the Vite module graph.
+
+- Use descriptive kebab-case filenames.
+- Prefer optimized WebP files for raster illustrations and photographs.
+- Optimize images before committing them and avoid unnecessarily large source files.
+- Provide explicit image dimensions to prevent layout shift.
+- Use meaningful alternative text for informative media and empty alternative text for decorative media.
+- Do not hotlink external production images; keep required landing-page assets in the repository.
 
 ## Build, Test, and Development Commands
 

@@ -1,22 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
+  ArrowsClockwise,
   CaretLeft,
   CaretRight,
-  Pause,
-  Play,
+  CrosshairSimple,
+  MagnifyingGlass,
+  MapPin,
+  SpinnerGap,
   X,
 } from '@phosphor-icons/react'
 import {
   BadgePercent,
   Check,
-  Crosshair,
   Leaf,
-  LoaderCircle,
   LocateFixed,
-  MapPin,
-  RefreshCw,
-  Search,
   SearchX,
   ShoppingBag,
   Sparkles,
@@ -25,6 +23,8 @@ import {
 import { useHomeDiscovery } from '../hooks/useHomeDiscovery'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
 import { reverseGeocode, warmLocationService } from '../api/locationApi'
+import heroImage from '../assets/hyperlocal-platform-hero.webp'
+import onlineOrderingHeroImage from '../assets/mithra-direct-online-ordering-hero.webp'
 
 const defaultQuery = {
   serviceArea: '502103',
@@ -202,9 +202,17 @@ function BrandFallback({ item, className = '', variant = 'compact' }) {
       aria-label={item.name}
     >
       <span className="brand-fallback__dots" />
-      {isShowcase && <span className="brand-fallback__label">Featured local business</span>}
-      <strong>{isShowcase ? item.name : item.initials || item.name?.slice(0, 2).toUpperCase()}</strong>
-      {!isShowcase && <small>Local goodness, made direct</small>}
+      {isShowcase ? (
+        <div className="brand-fallback__showcase-copy">
+          <span className="brand-fallback__label">Featured local business</span>
+          <strong>{item.name}</strong>
+        </div>
+      ) : (
+        <>
+          <strong>{item.initials || item.name?.slice(0, 2).toUpperCase()}</strong>
+          <small>Local goodness, made direct</small>
+        </>
+      )}
     </div>
   )
 }
@@ -234,7 +242,7 @@ function MediaWithFallback({ item, type = 'thumbnail', className = '' }) {
       className={`${className} ${isThumbnailFallback ? 'media-with-fallback--thumbnail' : ''}`.trim()}
       src={src}
       alt={item.name}
-      loading={type === 'banner' ? 'eager' : 'lazy'}
+      loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setSourceIndex((index) => index + 1)}
@@ -245,8 +253,6 @@ function MediaWithFallback({ item, type = 'thumbnail', className = '' }) {
 function DiscoverySkeleton() {
   return (
     <div className="discovery-skeleton" aria-label="Loading neighbourhood businesses">
-      <div className="skeleton skeleton--toolbar" />
-      <div className="skeleton skeleton--feature" />
       <div className="skeleton-row">
         {[1, 2, 3, 4].map((item) => <div className="skeleton skeleton--vendor" key={item} />)}
       </div>
@@ -257,106 +263,149 @@ function DiscoverySkeleton() {
   )
 }
 
+function FeaturedCarouselSkeleton() {
+  return (
+    <div
+      className="vendor-slider vendor-slider--loading"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading featured neighbourhood businesses"
+    >
+      <div className="vendor-slider__toolbar" aria-hidden="true">
+        <span className="carousel-skeleton carousel-skeleton--label" />
+        <div className="vendor-slider__actions">
+          <span className="carousel-skeleton carousel-skeleton--control" />
+          <span className="carousel-skeleton carousel-skeleton--control" />
+        </div>
+      </div>
+      <div className="vendor-slider__track vendor-slider__track--skeleton" aria-hidden="true">
+        {[1, 2, 3].map((item) => (
+          <div className="vendor-showcase-card vendor-showcase-card--skeleton" key={item}>
+            <span className="carousel-skeleton carousel-skeleton--card-media" />
+            <div className="vendor-showcase-card__body">
+              <span className="carousel-skeleton carousel-skeleton--card-title" />
+              <span className="carousel-skeleton carousel-skeleton--card-meta" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function HeroStorefrontFallback() {
+  return (
+    <div className="vendor-slider-empty">
+      <img
+        src={heroImage}
+        alt="A neighbourhood marketplace for local produce, dairy, bakery, pharmacy and tiffin businesses"
+        width="1120"
+        height="1400"
+        loading="lazy"
+        decoding="async"
+      />
+      <div>
+        <h3>Local shopping starts here</h3>
+        <p>Choose another area or refresh to find featured businesses nearby.</p>
+      </div>
+    </div>
+  )
+}
+
 function FeaturedCarousel({ vendors, onPreview }) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const [interacting, setInteracting] = useState(false)
-  const touchStart = useRef(null)
-  const activeVendor = vendors[activeIndex]
+  const trackRef = useRef(null)
+  const [canMoveBack, setCanMoveBack] = useState(false)
+  const [canMoveForward, setCanMoveForward] = useState(vendors.length > 1)
+
+  const updateControls = () => {
+    const track = trackRef.current
+    if (!track) return
+    const maximum = Math.max(0, track.scrollWidth - track.clientWidth)
+    setCanMoveBack(track.scrollLeft > 4)
+    setCanMoveForward(track.scrollLeft < maximum - 4)
+  }
 
   useEffect(() => {
-    if (activeIndex > vendors.length - 1) setActiveIndex(0)
-  }, [activeIndex, vendors.length])
-
-  useEffect(() => {
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    if (paused || interacting || reduceMotion || vendors.length < 2) return undefined
-
-    const timer = window.setInterval(() => {
-      setActiveIndex((index) => (index + 1) % vendors.length)
-    }, 6000)
-
-    return () => window.clearInterval(timer)
-  }, [interacting, paused, vendors.length])
-
-  if (!activeVendor) return null
+    updateControls()
+    window.addEventListener('resize', updateControls)
+    return () => window.removeEventListener('resize', updateControls)
+  }, [vendors.length])
 
   const move = (direction) => {
-    setActiveIndex((index) => (index + direction + vendors.length) % vendors.length)
-  }
-
-  const onPointerDown = (event) => {
-    touchStart.current = event.clientX
-    setInteracting(true)
-  }
-
-  const onPointerUp = (event) => {
-    if (touchStart.current !== null) {
-      const distance = event.clientX - touchStart.current
-      if (Math.abs(distance) > 42) move(distance > 0 ? -1 : 1)
+    const track = trackRef.current
+    if (!track) return
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const distance = Math.max(300, track.clientWidth * 0.72) * direction
+    if (typeof track.scrollBy === 'function') {
+      track.scrollBy({
+        left: distance,
+        behavior: reduceMotion ? 'auto' : 'smooth',
+      })
+    } else {
+      track.scrollLeft += distance
+      updateControls()
     }
-    touchStart.current = null
-    setInteracting(false)
   }
 
   return (
     <div
-      className="featured-carousel"
+      className="vendor-slider"
       aria-roledescription="carousel"
       aria-label="Featured neighbourhood businesses"
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerCancel={() => setInteracting(false)}
-      onMouseEnter={() => setInteracting(true)}
-      onMouseLeave={() => setInteracting(false)}
-      onFocusCapture={() => setInteracting(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false)
-      }}
     >
-      <div className="featured-carousel__media">
-        <MediaWithFallback
-          key={activeVendor.vendorId}
-          item={activeVendor}
-          type="banner"
-        />
-      </div>
-      <div className="featured-carousel__content" aria-live="polite">
-        <span className="discovery-kicker">Neighbourhood spotlight</span>
-        <h3>{activeVendor.name}</h3>
-        <p>
-          Discover what this local business is bringing to your neighbourhood through
-          Mithra Direct.
-        </p>
-        <div className="featured-carousel__actions">
-          <button type="button" className="discovery-primary-action" onClick={(event) => onPreview(activeVendor, 'vendor', event.currentTarget)}>
-            Preview business <ArrowRight size={16} />
+      <div className="vendor-slider__toolbar">
+        <span>{vendors.length} featured {vendors.length === 1 ? 'business' : 'businesses'}</span>
+        <div className="vendor-slider__actions">
+          <button
+            type="button"
+            onClick={() => move(-1)}
+            aria-label="Previous featured vendors"
+            disabled={!canMoveBack}
+          >
+            <CaretLeft size={19} />
           </button>
-          <span>{activeVendor.products.length} popular {activeVendor.products.length === 1 ? 'pick' : 'picks'}</span>
+          <button
+            type="button"
+            onClick={() => move(1)}
+            aria-label="Next featured vendors"
+            disabled={!canMoveForward}
+          >
+            <CaretRight size={19} />
+          </button>
         </div>
       </div>
-      <div className="featured-carousel__controls">
-        <button type="button" onClick={() => move(-1)} aria-label="Previous featured business">
-          <CaretLeft size={18} />
-        </button>
-        <div className="featured-carousel__dots" role="group" aria-label="Choose featured business">
-          {vendors.map((vendor, index) => (
-            <button
-              type="button"
-              key={`${vendor.vendorId}-${index}`}
-              className={index === activeIndex ? 'is-active' : ''}
-              onClick={() => setActiveIndex(index)}
-              aria-label={`Show ${vendor.name}`}
-              aria-current={index === activeIndex ? 'true' : undefined}
-            />
-          ))}
-        </div>
-        <button type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Play carousel' : 'Pause carousel'}>
-          {paused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}
-        </button>
-        <button type="button" onClick={() => move(1)} aria-label="Next featured business">
-          <CaretRight size={18} />
-        </button>
+      <div
+        className="vendor-slider__track"
+        ref={trackRef}
+        onScroll={updateControls}
+        aria-label="Featured business cards"
+      >
+        {vendors.map((vendor) => (
+          <button
+            type="button"
+            className="vendor-showcase-card"
+            key={vendor.vendorId}
+            onClick={(event) => onPreview(vendor, 'vendor', event.currentTarget)}
+            aria-label={`Preview ${vendor.name}`}
+          >
+            <div className="vendor-showcase-card__media">
+              <MediaWithFallback item={vendor} type="banner" />
+            </div>
+            <div className="vendor-showcase-card__body">
+              <div>
+                <h3>{vendor.name}</h3>
+                <span>
+                  {vendor.products.length
+                    ? `${vendor.products.length} popular ${vendor.products.length === 1 ? 'pick' : 'picks'}`
+                    : 'New to the neighbourhood'}
+                </span>
+              </div>
+              <span className="vendor-showcase-card__link">
+                View storefront <ArrowRight size={16} />
+              </span>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -764,7 +813,7 @@ function DiscoveryError({ error, onRetry }) {
         <strong>We couldn’t open this neighbourhood.</strong>
         <p>{error?.userMessage || 'The local discovery service is temporarily unavailable.'}</p>
       </div>
-      <button type="button" onClick={onRetry}><RefreshCw size={15} /> Try again</button>
+      <button type="button" onClick={onRetry}><ArrowsClockwise size={15} /> Try again</button>
     </div>
   )
 }
@@ -907,188 +956,254 @@ export default function DiscoverySection() {
   const closePreview = () => setSelection(null)
 
   return (
-    <section className="neighbourhood" id="discover" aria-labelledby="discover-title" ref={sectionRef}>
-      <div className="container">
-        <div className="neighbourhood__heading">
-          <div>
-            <span className="kicker">Live neighbourhood preview</span>
-            <h2 id="discover-title">See what’s good around the corner.</h2>
-          </div>
-          <p>Real businesses and popular picks returned for your service area, presented through the Mithra Direct experience.</p>
-        </div>
-
-        <div className="location-toolbar">
-          <div
-            className="location-search"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false)
-            }}
-          >
-            <MapPin size={18} fill="currentColor" />
-            <div className="location-search__field">
-              <small>Explore businesses near</small>
-              <input
-                type="search"
-                value={searchText}
-                onFocus={() => setSearchOpen(true)}
-                onChange={(event) => {
-                  setSearchText(event.target.value)
-                  setSearchOpen(true)
-                  setIsEditingLocation(true)
-                  setHighlightedIndex(-1)
-                  setLocationError('')
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowDown' && suggestions.length) {
-                    event.preventDefault()
-                    setHighlightedIndex((index) => (index + 1) % suggestions.length)
-                  }
-                  if (event.key === 'ArrowUp' && suggestions.length) {
-                    event.preventDefault()
-                    setHighlightedIndex((index) => (
-                      index <= 0 ? suggestions.length - 1 : index - 1
-                    ))
-                  }
-                  if (event.key === 'Enter' && highlightedIndex >= 0) {
-                    event.preventDefault()
-                    selectPlace(suggestions[highlightedIndex])
-                  }
-                  if (event.key === 'Escape') {
-                    setSearchText(activePlace.label)
-                    setSearchOpen(false)
-                    setIsEditingLocation(false)
-                    setHighlightedIndex(-1)
-                  }
-                }}
-                role="combobox"
-                aria-label="Search for an area or place"
-                aria-expanded={searchOpen && isEditingLocation}
-                aria-controls="location-suggestions"
-                aria-autocomplete="list"
-                aria-activedescendant={
-                  highlightedIndex >= 0 ? `location-option-${highlightedIndex}` : undefined
-                }
-                placeholder="Search area or place"
-              />
-              {!isEditingLocation && (
-                <span>
-                  {activePlace.detail}
-                  {activePlace.locationType === 'APPROXIMATE' ? ', area centre' : ''}
-                </span>
-              )}
-            </div>
-            {isSearching || isApplyingPlace ? <LoaderCircle className="is-spinning location-search__status" size={17} /> : <Search className="location-search__status" size={17} />}
-            {searchOpen && isEditingLocation && (
-              <div className="location-suggestions" id="location-suggestions" role="listbox">
-                {searchText.trim().length < 3 && (
-                  <div className="location-suggestions__hint">Type at least three characters to search areas and places.</div>
-                )}
-                {searchText.trim().length >= 3 && !isSearching && suggestions.length === 0 && !searchError && (
-                  <div className="location-suggestions__hint">No matching areas found. Try a nearby city or landmark.</div>
-                )}
-                {suggestions.map((place, index) => (
-                  <button
-                    type="button"
-                    role="option"
-                    id={`location-option-${index}`}
-                    key={place.id}
-                    className={highlightedIndex === index ? 'is-highlighted' : ''}
-                    aria-selected={highlightedIndex === index}
-                    onMouseMove={() => setHighlightedIndex(index)}
-                    onClick={() => selectPlace(place)}
-                    disabled={isApplyingPlace}
-                  >
-                    <span><MapPin size={15} /></span>
-                    <div>
-                      <strong><HighlightedText text={place.name} query={searchText} /></strong>
-                      <small><HighlightedText text={place.detail || place.label} query={searchText} /></small>
-                    </div>
-                    {place.postcode && <em>{place.postcode}</em>}
-                  </button>
-                ))}
-                {searchError && <div className="location-suggestions__error">{searchError}</div>}
-                <div className="location-suggestions__credit">
-                  <span>Location results by</span>
-                  <strong>Google Maps</strong>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="location-toolbar__actions">
-            {isRefreshing && <span className="refreshing-label"><LoaderCircle size={14} /> Refreshing</span>}
-            <button type="button" onClick={useCurrentLocation} disabled={geoStatus === 'loading' || isApplyingPlace}>
-              {geoStatus === 'loading' ? <LoaderCircle className="is-spinning" size={16} /> : <Crosshair size={16} />}
-              {geoStatus === 'loading' ? 'Locating…' : 'Use my location'}
-            </button>
-            <button type="button" onClick={refresh} aria-label="Refresh neighbourhood results" disabled={isLoading || isRefreshing}>
-              <RefreshCw size={16} className={isRefreshing ? 'is-spinning' : ''} />
-            </button>
-          </div>
-          {locationError && <p className="location-toolbar__error" role="alert">{locationError}</p>}
-        </div>
-
-        {isLoading && <DiscoverySkeleton />}
-        {!isLoading && error && !data && <DiscoveryError error={error} onRetry={refresh} />}
-
-        {data && (
-          <div className={isRefreshing ? 'discovery-content is-refreshing' : 'discovery-content'}>
-            {error && <DiscoveryError error={error} onRetry={refresh} />}
-            <div className="live-counts" aria-label="Live neighbourhood counts">
-              <div><strong>{data.summary.vendorCount}</strong><span>businesses nearby</span></div>
-              <div><strong>{data.summary.productCount}</strong><span>popular local picks</span></div>
-              <div><strong><LocateFixed size={19} /> GEO</strong><span>location-based results</span></div>
-            </div>
-
-            {data.featuredVendors.length > 0 && (
-              <FeaturedCarousel vendors={data.featuredVendors} onPreview={openPreview} />
-            )}
-
-            {data.offers.length > 0 ? (
-              <OffersStrip offers={data.offers} onPreview={openPreview} />
-            ) : (
-              <>
-                <OffersEmptyState
-                  isPreviewOpen={showSampleOffers}
-                  onTogglePreview={() => setShowSampleOffers((value) => !value)}
-                />
-                {showSampleOffers && (
-                  <div id="sample-offers-preview">
-                    <OffersStrip
-                      offers={buildSampleOffers(data)}
-                      isPreview
-                      onPreview={openPreview}
+    <section className="neighbourhood" id="top" aria-labelledby="discover-title" ref={sectionRef}>
+      <div className="neighbourhood-hero">
+        <div className="container neighbourhood-hero__grid">
+          <div className="neighbourhood-hero__content">
+            <span className="neighbourhood-hero__kicker">
+              <Store size={17} aria-hidden="true" />
+              Neighbourhood shopping, made direct
+            </span>
+            <h1 id="discover-title">
+              Everything local,
+              <span>closer to home.</span>
+            </h1>
+            <p>
+              Shop trusted nearby businesses for fresh food, daily essentials and flexible repeat deliveries.
+            </p>
+            <div className="location-toolbar" id="discover">
+              <label className="location-toolbar__label" htmlFor="delivery-area-search">
+                <span>Choose your delivery area</span>
+                <small>We’ll show businesses that can serve this location.</small>
+              </label>
+              <div className="location-toolbar__row">
+                <div
+                  className="location-search"
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false)
+                  }}
+                >
+                  <MapPin size={19} weight="fill" aria-hidden="true" />
+                  <div className="location-search__field">
+                    <input
+                      id="delivery-area-search"
+                      type="search"
+                      value={searchText}
+                      onFocus={() => setSearchOpen(true)}
+                      onChange={(event) => {
+                        setSearchText(event.target.value)
+                        setSearchOpen(true)
+                        setIsEditingLocation(true)
+                        setHighlightedIndex(-1)
+                        setLocationError('')
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown' && suggestions.length) {
+                          event.preventDefault()
+                          setHighlightedIndex((index) => (index + 1) % suggestions.length)
+                        }
+                        if (event.key === 'ArrowUp' && suggestions.length) {
+                          event.preventDefault()
+                          setHighlightedIndex((index) => (
+                            index <= 0 ? suggestions.length - 1 : index - 1
+                          ))
+                        }
+                        if (event.key === 'Enter' && highlightedIndex >= 0) {
+                          event.preventDefault()
+                          selectPlace(suggestions[highlightedIndex])
+                        }
+                        if (event.key === 'Escape') {
+                          setSearchText(activePlace.label)
+                          setSearchOpen(false)
+                          setIsEditingLocation(false)
+                          setHighlightedIndex(-1)
+                        }
+                      }}
+                      role="combobox"
+                      aria-label="Search for an area or place"
+                      aria-expanded={searchOpen && isEditingLocation}
+                      aria-controls="location-suggestions"
+                      aria-autocomplete="list"
+                      aria-activedescendant={
+                        highlightedIndex >= 0 ? `location-option-${highlightedIndex}` : undefined
+                      }
+                      placeholder="Search area or place"
                     />
+                    {!isEditingLocation && (
+                      <span>
+                        {activePlace.detail}
+                        {activePlace.locationType === 'APPROXIMATE' ? ', area centre' : ''}
+                      </span>
+                    )}
                   </div>
-                )}
-              </>
-            )}
-
-            <div className="discovery-rail-section">
-              <div className="discovery-section-heading">
-                <div><span className="discovery-kicker">Meet your makers</span><h3>New around you</h3></div>
-                <span>{data.vendors.length} local businesses</span>
-              </div>
-              {data.vendors.length ? (
-                <div className="live-vendor-grid">
-                  {data.vendors.map((vendor) => <VendorCard key={vendor.vendorId} vendor={vendor} onPreview={openPreview} />)}
+                  {isSearching || isApplyingPlace
+                    ? <SpinnerGap className="is-spinning location-search__status" size={18} />
+                    : <MagnifyingGlass className="location-search__status" size={18} />}
+                  {searchOpen && isEditingLocation && (
+                    <div className="location-suggestions" id="location-suggestions" role="listbox">
+                      {searchText.trim().length < 3 && (
+                        <div className="location-suggestions__hint">Type at least three characters to search areas and places.</div>
+                      )}
+                      {searchText.trim().length >= 3 && !isSearching && suggestions.length === 0 && !searchError && (
+                        <div className="location-suggestions__hint">No matching areas found. Try a nearby city or landmark.</div>
+                      )}
+                      {suggestions.map((place, index) => (
+                        <button
+                          type="button"
+                          role="option"
+                          id={`location-option-${index}`}
+                          key={place.id}
+                          className={highlightedIndex === index ? 'is-highlighted' : ''}
+                          aria-selected={highlightedIndex === index}
+                          onMouseMove={() => setHighlightedIndex(index)}
+                          onClick={() => selectPlace(place)}
+                          disabled={isApplyingPlace}
+                        >
+                          <span><MapPin size={16} /></span>
+                          <div>
+                            <strong><HighlightedText text={place.name} query={searchText} /></strong>
+                            <small><HighlightedText text={place.detail || place.label} query={searchText} /></small>
+                          </div>
+                          {place.postcode && <em>{place.postcode}</em>}
+                        </button>
+                      ))}
+                      {searchError && <div className="location-suggestions__error">{searchError}</div>}
+                      <div className="location-suggestions__credit">
+                        <span>Location results by</span>
+                        <strong>Google Maps</strong>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="discovery-empty"><Store size={25} /><strong>No businesses found nearby yet.</strong><span>Try another service area or refresh in a moment.</span></div>
-              )}
-            </div>
-
-            <div className="discovery-products-section">
-              <div className="discovery-section-heading">
-                <div><span className="discovery-kicker">From nearby businesses</span><h3>Popular picks</h3></div>
+                <button
+                  className="location-toolbar__current"
+                  type="button"
+                  onClick={useCurrentLocation}
+                  disabled={geoStatus === 'loading' || isApplyingPlace}
+                >
+                  {geoStatus === 'loading'
+                    ? <SpinnerGap className="is-spinning" size={18} />
+                    : <CrosshairSimple size={18} />}
+                  {geoStatus === 'loading' ? 'Locating...' : 'Use my location'}
+                </button>
               </div>
-              {data.products.length ? (
-                <ProductSlider products={data.products} onPreview={openPreview} />
-              ) : (
-                <div className="discovery-empty"><ShoppingBag size={25} /><strong>No popular picks here yet.</strong><span>Try another area or check back soon.</span></div>
-              )}
+              {locationError && <p className="location-toolbar__error" role="alert">{locationError}</p>}
             </div>
           </div>
-        )}
+          <div className="neighbourhood-hero__media">
+            <img
+              src={onlineOrderingHeroImage}
+              alt="A customer orders online while neighbourhood grocery, dairy, bakery, pharmacy and tiffin vendors prepare deliveries"
+              width="1440"
+              height="1080"
+              fetchPriority="high"
+              decoding="async"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="featured-vendors-section" aria-labelledby="featured-vendors-title">
+        <div className="container">
+          <div className="featured-vendors__header">
+            <div>
+              <h2 id="featured-vendors-title">Shops worth knowing, close by.</h2>
+              <p>Browse a rotating selection based on your chosen delivery area.</p>
+            </div>
+            <div className="featured-vendors__location">
+              <MapPin size={19} weight="fill" aria-hidden="true" />
+              <span>
+                <small>Browsing near</small>
+                <strong>{activePlace.name}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={refresh}
+                aria-label="Refresh neighbourhood results"
+                disabled={isLoading || isRefreshing}
+              >
+                <ArrowsClockwise
+                  size={18}
+                  className={isRefreshing ? 'is-spinning' : ''}
+                  aria-hidden="true"
+                />
+                {isRefreshing ? 'Refreshing' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+          <div className="featured-vendors__stage">
+            {isLoading && !data ? (
+              <FeaturedCarouselSkeleton />
+            ) : data?.featuredVendors?.length ? (
+              <FeaturedCarousel vendors={data.featuredVendors} onPreview={openPreview} />
+            ) : (
+              <HeroStorefrontFallback />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="neighbourhood-results">
+        <div className="container">
+          {isLoading && <DiscoverySkeleton />}
+          {!isLoading && error && !data && <DiscoveryError error={error} onRetry={refresh} />}
+
+          {data && (
+            <div className={isRefreshing ? 'discovery-content is-refreshing' : 'discovery-content'}>
+              {error && <DiscoveryError error={error} onRetry={refresh} />}
+              <div className="live-counts" aria-label="Live neighbourhood counts">
+                <div><strong>{data.summary.vendorCount}</strong><span>businesses nearby</span></div>
+                <div><strong>{data.summary.productCount}</strong><span>popular local picks</span></div>
+                <div><strong><LocateFixed size={19} /> GEO</strong><span>location-based results</span></div>
+              </div>
+
+              {data.offers.length > 0 ? (
+                <OffersStrip offers={data.offers} onPreview={openPreview} />
+              ) : (
+                <>
+                  <OffersEmptyState
+                    isPreviewOpen={showSampleOffers}
+                    onTogglePreview={() => setShowSampleOffers((value) => !value)}
+                  />
+                  {showSampleOffers && (
+                    <div id="sample-offers-preview">
+                      <OffersStrip
+                        offers={buildSampleOffers(data)}
+                        isPreview
+                        onPreview={openPreview}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="discovery-rail-section">
+                <div className="discovery-section-heading">
+                  <div><span className="discovery-kicker">Meet your makers</span><h3>New around you</h3></div>
+                  <span>{data.vendors.length} local businesses</span>
+                </div>
+                {data.vendors.length ? (
+                  <div className="live-vendor-grid">
+                    {data.vendors.map((vendor) => <VendorCard key={vendor.vendorId} vendor={vendor} onPreview={openPreview} />)}
+                  </div>
+                ) : (
+                  <div className="discovery-empty"><Store size={25} /><strong>No businesses found nearby yet.</strong><span>Try another service area or refresh in a moment.</span></div>
+                )}
+              </div>
+
+              <div className="discovery-products-section">
+                <div className="discovery-section-heading">
+                  <div><span className="discovery-kicker">From nearby businesses</span><h3>Popular picks</h3></div>
+                </div>
+                {data.products.length ? (
+                  <ProductSlider products={data.products} onPreview={openPreview} />
+                ) : (
+                  <div className="discovery-empty"><ShoppingBag size={25} /><strong>No popular picks here yet.</strong><span>Try another area or check back soon.</span></div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <PreviewDrawer selection={selection} onClose={closePreview} />
     </section>

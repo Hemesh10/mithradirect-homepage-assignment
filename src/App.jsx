@@ -10,7 +10,6 @@ import {
 import {
   Check,
   HeartHandshake,
-  MapPin,
   ShoppingBag,
   Store,
 } from 'lucide-react'
@@ -23,7 +22,6 @@ import {
   journeySteps,
   navigation,
 } from './data'
-import heroImage from './assets/hyperlocal-platform-hero.webp'
 import bakerImage from './assets/local-baker-orders.webp'
 import dairySubscriptionImage from './assets/dairy-subscription-delivery.webp'
 
@@ -133,42 +131,6 @@ function Header() {
         </nav>
       </div>
     </header>
-  )
-}
-
-function Hero() {
-  return (
-    <section className="hero" id="top">
-      <div className="container hero__grid">
-        <Reveal className="hero__content">
-          <div className="hero__eyebrow">
-            <MapPin size={14} fill="currentColor" aria-hidden="true" />
-            Built for the neighbourhood
-          </div>
-          <h1>Local, made direct.</h1>
-          <p>
-            Discover trusted local businesses, order directly, and keep more value close to home.
-          </p>
-          <div className="hero__actions">
-            <a className="button button--accent" href="#discover">
-              Explore nearby <ArrowRight size={18} aria-hidden="true" />
-            </a>
-            <a className="button button--text" href="#why-mithra">
-              For businesses
-            </a>
-          </div>
-        </Reveal>
-        <Reveal className="hero__media" delay={100}>
-          <img
-            src={heroImage}
-            alt="A mobile neighbourhood marketplace connecting customers with local produce, dairy, bakery, pharmacy and tiffin businesses"
-            width="1120"
-            height="1400"
-            fetchPriority="high"
-          />
-        </Reveal>
-      </div>
-    </section>
   )
 }
 
@@ -465,7 +427,6 @@ export default function App() {
       <a className="skip-link" href="#main-content">Skip to content</a>
       <Header />
       <main id="main-content">
-        <Hero />
         <DiscoverySection />
         <AudienceSection />
         <Journey />

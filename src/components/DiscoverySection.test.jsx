@@ -45,6 +45,24 @@ describe('DiscoverySection', () => {
     const user = userEvent.setup()
     render(<DiscoverySection />)
 
+    const hero = screen.getByRole('heading', {
+      level: 1,
+      name: /Everything local, closer to home\./i,
+    }).closest('.neighbourhood-hero')
+    expect(within(hero).getByRole('combobox', {
+      name: 'Search for an area or place',
+    })).toBeInTheDocument()
+    expect(within(hero).getByRole('img', {
+      name: /customer orders online while neighbourhood grocery, dairy, bakery, pharmacy and tiffin vendors prepare deliveries/i,
+    })).toBeInTheDocument()
+    expect(within(hero).queryByRole('img', {
+      name: /local shopkeeper hands a bag of fresh groceries/i,
+    })).not.toBeInTheDocument()
+    expect(within(hero).queryByLabelText('Featured neighbourhood businesses')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', {
+      name: 'Shops worth knowing, close by.',
+    })).toBeInTheDocument()
+    expect(screen.getAllByLabelText('Featured neighbourhood businesses')).toHaveLength(1)
     expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('businesses nearby')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
@@ -73,6 +91,25 @@ describe('DiscoverySection', () => {
     expect(screen.getByRole('button', { name: 'Preview sample offers' })).toBeInTheDocument()
   })
 
+  it('shows a layout-matched storefront skeleton while discovery data loads', () => {
+    useHomeDiscovery.mockReturnValue({
+      data: null,
+      error: null,
+      refresh: vi.fn(),
+      isLoading: true,
+      isRefreshing: false,
+    })
+
+    render(<DiscoverySection />)
+
+    const skeleton = screen.getByRole('status', {
+      name: 'Loading featured neighbourhood businesses',
+    })
+    expect(skeleton).toHaveAttribute('aria-busy', 'true')
+    expect(skeleton).toHaveClass('vendor-slider--loading')
+    expect(screen.queryByText('Local shopping starts here')).not.toBeInTheDocument()
+  })
+
   it('falls back from a featured banner to its thumbnail and then the business name', async () => {
     render(<DiscoverySection />)
     const carousel = screen.getByLabelText('Featured neighbourhood businesses')
@@ -81,12 +118,15 @@ describe('DiscoverySection', () => {
       name: 'Kammani - Authentic Telangana Snacks',
     })).toBeInTheDocument()
     expect(within(carousel).getAllByText('Kammani - Authentic Telangana Snacks')).toHaveLength(2)
-    expect(within(carousel).getByText('Featured local business')).toBeInTheDocument()
+    const fallbackLabel = within(carousel).getByText('Featured local business')
+    const fallbackCopy = fallbackLabel.closest('.brand-fallback__showcase-copy')
+
+    expect(fallbackCopy).toBeInTheDocument()
+    expect(fallbackCopy).toContainElement(
+      within(fallbackCopy).getByText('Kammani - Authentic Telangana Snacks'),
+    )
     expect(within(carousel).queryByText(/Discover what is available nearby/i)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', {
-      name: 'Show Straight From The Farm (SFTF)',
-    }))
     const banner = within(carousel).getByRole('img', {
       name: 'Straight From The Farm (SFTF)',
     })
@@ -278,11 +318,11 @@ describe('DiscoverySection', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('exposes carousel navigation and pause controls', () => {
+  it('exposes compact vendor-slider navigation controls', () => {
     render(<DiscoverySection />)
 
-    expect(screen.getByRole('button', { name: 'Previous featured business' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Pause carousel' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next featured business' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous featured vendors' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pause carousel' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next featured vendors' })).toBeInTheDocument()
   })
 })
