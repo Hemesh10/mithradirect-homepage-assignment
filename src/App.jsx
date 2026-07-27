@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
-  Check,
-  ChevronRight,
-  HeartHandshake,
-  MapPin,
-  Menu,
+  CaretRight,
+  List,
   Pause,
   Play,
+  X,
+} from '@phosphor-icons/react'
+import {
+  Check,
+  HeartHandshake,
+  MapPin,
   ShoppingBag,
   Store,
-  X,
 } from 'lucide-react'
 import DiscoverySection from './components/DiscoverySection'
 import {
@@ -21,9 +23,9 @@ import {
   journeySteps,
   navigation,
 } from './data'
-import heroImage from './assets/neighborhood-handoff.webp'
+import heroImage from './assets/hyperlocal-platform-hero.webp'
 import bakerImage from './assets/local-baker-orders.webp'
-import produceImage from './assets/weekly-produce-box.webp'
+import dairySubscriptionImage from './assets/dairy-subscription-delivery.webp'
 
 function BrandMark({ light = false }) {
   return (
@@ -115,14 +117,14 @@ function Header() {
           aria-controls="mobile-navigation"
           aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
         >
-          {open ? <X /> : <Menu />}
+          {open ? <X /> : <List />}
         </button>
       </div>
       <div id="mobile-navigation" className={`mobile-nav ${open ? 'mobile-nav--open' : ''}`}>
         <nav aria-label="Mobile navigation">
           {navigation.map((item) => (
             <a key={item.href} href={item.href} onClick={() => setOpen(false)}>
-              {item.label} <ChevronRight size={18} aria-hidden="true" />
+              {item.label} <CaretRight size={18} aria-hidden="true" />
             </a>
           ))}
           <a className="button button--ink" href="#waitlist" onClick={() => setOpen(false)}>
@@ -159,7 +161,7 @@ function Hero() {
         <Reveal className="hero__media" delay={100}>
           <img
             src={heroImage}
-            alt="A neighbourhood shop owner hands fresh groceries to a customer"
+            alt="A mobile neighbourhood marketplace connecting customers with local produce, dairy, bakery, pharmacy and tiffin businesses"
             width="1120"
             height="1400"
             fetchPriority="high"
@@ -252,7 +254,7 @@ function SubscriptionSection() {
   const [paused, setPaused] = useState(false)
 
   return (
-    <section className="section subscriptions">
+    <section className="section subscriptions" id="subscriptions">
       <div className="container subscriptions__grid">
         <Reveal className="subscriptions__content">
           <span className="section-label">Designed to repeat</span>
@@ -282,10 +284,10 @@ function SubscriptionSection() {
         </Reveal>
         <Reveal className="subscriptions__media" delay={100}>
           <img
-            src={produceImage}
-            alt="Fresh vegetables and bread being unpacked from a weekly local delivery"
-            width="1120"
-            height="1120"
+            src={dairySubscriptionImage}
+            alt="A local dairy owner prepares milk, curd and paneer for a recurring delivery"
+            width="1440"
+            height="960"
             loading="lazy"
             decoding="async"
           />

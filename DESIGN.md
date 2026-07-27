@@ -1,196 +1,369 @@
 ---
-version: "mithra-direct-synapse-visual-refresh"
-name: "Mithra Direct - Synapse Green"
-description: "A crisp, technical visual system for neighbourhood commerce, adapted from the Synapse decentralized-compute reference without changing the site's established structure, layout, or motion."
-designVariance: 6
-motionIntensity: "preserve existing"
+version: "mithra-direct-community-commerce"
+name: "Mithra Direct - Community Commerce"
+description: "A warm, trustworthy and modern light visual system for hyperlocal shopping, neighbourhood vendors, subscriptions and local delivery."
+designVariance: 7
+motionIntensity: "restrained"
 visualDensity: 4
 ---
 
-# Mithra Direct - Synapse Green
+# Mithra Direct - Community Commerce
 
 ## Design intent
 
-Mithra Direct should feel direct, capable, and optimistic. The visual language pairs a nearly white canvas with precise charcoal typography, bright green actions, pale green supporting surfaces, and restrained technical labels.
+Mithra Direct should feel warm, trustworthy, convenient and locally connected. The visual system should make customers comfortable ordering everyday essentials and make vendors feel that they are using a reliable professional commerce platform. The interface should prioritize neighbourhood discovery, clear product presentation, transparent delivery information, subscriptions and long-term customer relationships.
 
-This is a redesign in preserve mode. The reference supplies the visual system, while the existing Mithra Direct page remains the source of truth for content hierarchy and behavior.
+The design communicates:
+
+- Trust
+- Community
+- Freshness
+- Everyday convenience
+- Reliable delivery
+- Transparent commerce
+- Vendor professionalism
+- Local-business growth
+
+The design must not feel dark, cyberpunk, technical, developer-oriented, crypto-inspired, AI-infrastructure-inspired, neon-heavy, cold, or experimental.
+
+## Theme behavior
+
+Mithra Direct uses one consistent light theme.
+
+- Set the application root to `color-scheme: light`.
+- Do not change the interface in response to the operating-system color scheme.
+- Customer and vendor workflows use light canvases, white surfaces, dark text, and deep teal actions.
+- Do not define automatic dark page, card, input, dialog, drawer, or navigation variants.
+- A deep navy footer is permitted as a limited terminal section.
+- A small intentional dark promotional area may be used when it supports content, but dark backgrounds should normally occupy no more than approximately 10% of a customer-facing page.
 
 ## Preservation contract
 
-The revamp must not change:
+Preserve:
 
-- React component structure or DOM order
-- Section order, anchor IDs, navigation labels, or conversion paths
-- Existing grid and flex layouts
-- Container widths, section spacing, breakpoints, or responsive stacking
-- Image placement, aspect ratios, or cropping behavior
-- Form field order, labels, validation, or accessibility attributes
-- Animation names, durations, easing, reveal behavior, hover movement, or reduced-motion handling
-- Discovery interactions, carousel controls, preview drawer behavior, loading states, or error states
+- Business logic and API contracts
+- Authentication and routes
+- Data fetching and normalization
+- Existing functional controls
+- Form meaning, validation, and field semantics
+- Cart, checkout, order, payment, subscription, vendor, and delivery behavior when present
+- Accessibility semantics, labels, keyboard behavior, live regions, and focus management
+- Existing loading, empty, success, and error behavior
 
-The revamp may change:
+Allow careful improvements to:
 
-- Semantic color tokens and component color states
-- Font families and typographic roles
-- Font weights where they do not alter hierarchy
-- Border color, shadow character, and surface tint
-- Corner-radius tokens
-- Browser theme colors
+- Section spacing and container padding
+- Card groupings and surface hierarchy
+- Hero composition
+- Grid gaps and visual ordering within a section
+- Responsive spacing and stacking
+- Image sizing and placement
+- Typography scale and weight
+- CTA hierarchy
+- Navigation presentation
+- Content grouping and component elevation
+- Section backgrounds
 
-## Reference mapping
+Do not arbitrarily rewrite the application, remove functional components, rename routes, or change business behavior. Layout changes are permitted only when they improve clarity, warmth, responsiveness, or commerce usability.
 
-The visual direction is adapted from the supplied Synapse design:
+## Semantic color system
 
-- Synapse primary green becomes the single Mithra Direct accent.
-- Synapse pale green becomes the supporting surface and focus color.
-- Synapse near-white becomes the page canvas.
-- Synapse charcoal and grey become primary and secondary text.
-- Synapse technical typography becomes the hierarchy for labels and metadata.
-- Synapse 8px geometry becomes the shared card and control radius.
+```yaml
+colors:
+  canvas: "#F8FAF8"
+  canvas-warm: "#FCFBF7"
 
-No compute, WebGL, authentication, or decentralized-network motifs are introduced. Those belong to the source product, not Mithra Direct.
+  surface: "#FFFFFF"
+  surface-muted: "#F1F6F3"
+  surface-warm: "#FFF9ED"
+  surface-elevated: "#FFFFFF"
 
-## Color system
+  ink: "#1F2937"
+  ink-strong: "#17324D"
+  muted: "#667085"
+  muted-light: "#8A949F"
 
-### Light mode
+  primary: "#176B5B"
+  primary-hover: "#125246"
+  primary-soft: "#E8F4F0"
+  primary-text: "#FFFFFF"
 
-| Token | Value | Role |
-| --- | --- | --- |
-| `--canvas` | `#FDFDFD` | Page background |
-| `--surface` | `#FFFFFF` | Primary cards, inputs, and panels |
-| `--surface-strong` | `#BBF7D0` | Highlighted and selected surfaces |
-| `--surface-muted` | `#F0FDF4` | Section tint and quiet grouping |
-| `--ink` | `#111827` | Primary text and dark actions |
-| `--muted` | `#4B5563` | Supporting text |
-| `--accent` | `#4ADE80` | Primary action and focus color |
-| `--accent-hover` | `#22C55E` | Hover and pressed action color |
-| `--accent-soft` | `#BBF7D0` | Soft emphasis and selection |
-| `--line` | `#E5E7EB` | Borders and separators |
-| `--danger` | `#B42318` | Errors and destructive feedback |
+  secondary: "#17324D"
+  secondary-soft: "#EDF3F7"
 
-### Dark mode
+  accent: "#F59E0B"
+  accent-hover: "#D98705"
+  accent-soft: "#FFF4D6"
 
-Dark mode keeps the same green identity and hierarchy rather than switching to a separate visual theme.
+  line: "#DDE5E1"
+  line-subtle: "#E9EEEB"
 
-| Token | Value | Role |
-| --- | --- | --- |
-| `--canvas` | `#0B0F14` | Page background |
-| `--surface` | `#121923` | Primary cards, inputs, and panels |
-| `--surface-strong` | `#173D26` | Highlighted surfaces |
-| `--surface-muted` | `#101A15` | Section tint and quiet grouping |
-| `--ink` | `#F3F4F6` | Primary text |
-| `--muted` | `#B7C0CC` | Supporting text |
-| `--accent` | `#4ADE80` | Primary action and focus color |
-| `--accent-hover` | `#86EFAC` | Hover action color |
-| `--accent-soft` | `#173D26` | Soft emphasis and selection |
-| `--line` | `#293442` | Borders and separators |
-| `--danger` | `#FCA5A5` | Errors and destructive feedback |
+  success: "#16803C"
+  success-soft: "#EAF7EE"
+
+  warning: "#C76B08"
+  warning-soft: "#FFF4E5"
+
+  danger: "#C93C37"
+  danger-soft: "#FDECEC"
+
+  info: "#2563EB"
+  info-soft: "#EAF1FF"
+```
+
+Use semantic variables by meaning rather than assigning one green to every role. Deep teal is the brand and action color. Navy establishes trust and professional hierarchy. Amber supplies warmth. Blue, green, amber, indigo, and red communicate distinct operational states.
+
+When normal-sized warning or danger text appears on a matching soft surface, use accessible derived text tokens (`#9A4D00` for warning and `#B42318` for danger) while retaining the canonical colors for borders, icons, and larger decorative moments.
+
+## Surface hierarchy
+
+White and near-white surfaces are foundational to the Mithra Direct interface. Customer and vendor pages must contain clearly visible white cards, panels, forms, navigation surfaces and content areas. The platform must never become a full-page dark SaaS interface.
+
+Use white surfaces for:
+
+- Navigation
+- Vendor, product, category, subscription, and order cards
+- Search and location panels
+- Forms and inputs
+- Cart and checkout summaries
+- Vendor dashboard widgets and tables
+- Drawers, dialogs, and dropdowns
+- Account panels
+- Empty, loading, and error states
+
+The default page canvas is `#F8FAF8`, allowing white cards to remain visibly distinct. Alternate intentionally between the neutral canvas, warm canvas, white surfaces, pale green grouping sections, and occasional pale amber subscription or community highlights.
+
+### Color distribution
+
+- Approximately 65-75% of each page should use white, warm white, or light neutral surfaces.
+- Approximately 15-20% may use pale green, pale blue, or pale amber sections.
+- Strong teal is reserved for primary actions, selected states, links, focus indicators, and important brand moments.
+- Navy is used for headings, navigation text, and professional vendor-facing emphasis.
+- Amber is used sparingly for subscriptions, offers, friendly highlights, and attention states.
+- Red only represents errors, cancellation, failure, or destructive actions.
+- Do not use large teal, navy, or black surfaces merely to create visual impact.
 
 ## Typography
 
-The reference explicitly calls for Inter, Space Grotesk, and JetBrains Mono. They are assigned by role:
+Use Inter as the primary interface family.
 
-- Display: Inter, weight 500, for `h1`, `h2`, and major numeric moments
-- Body: Space Grotesk, weight 400-600, for paragraphs, navigation, forms, and buttons
-- Labels: JetBrains Mono, weight 600, for eyebrows, kickers, compact metadata, counts, statuses, and footer group labels
+- Display and major headings: Inter, weight 600-700
+- Section headings: Inter, weight 600
+- Body: Inter, weight 400-500
+- Navigation and controls: Inter, weight 500-600
+- Labels and metadata: Inter, weight 500-600
+- Prices: Inter, weight 600-700
 
-Font files must be self-hosted through local dependencies and use `font-display: swap`.
+Do not use monospace for eyebrows, kickers, vendor metadata, distance, delivery times, ratings, product counts, status labels, footer labels, or order information. Monospace is reserved for rare genuine technical identifiers.
 
-Existing font sizes, line heights, and spacing remain unchanged so the established layout is preserved.
+Fonts must be served locally with `font-display: swap`.
 
 ## Shape and material
 
-- Cards: 8px radius
-- Controls: 8px radius
-- Pills: 9999px only where a control is semantically pill-shaped
-- Borders: 1px using the semantic line token
-- Shadows: soft charcoal-tinted depth with no glow
-- Selected states: pale green fill plus a clear border
-- Primary actions: bright green background with charcoal text
-- Dark actions: charcoal background with near-white text
+- Cards use a consistent 12px radius.
+- Controls use a consistent 9px radius.
+- Pills are limited to badges, filters, and status chips.
+- Borders use subtle green-grey line tokens.
+- Standard cards use `0 4px 16px rgba(23, 50, 77, 0.06)`.
+- Elevated cards and drawers use `0 10px 30px rgba(23, 50, 77, 0.08)`.
+- White surfaces sit visibly above light neutral canvases.
+- Selected states use pale green fills and clear teal borders.
+- Primary actions use deep teal with white text.
+- Secondary actions use white surfaces, dark text, and visible borders.
 
-Cards remain present only where the existing layout uses them. No new card containers are introduced.
+Do not use glowing green shadows, neon borders, full black cards, heavy glassmorphism, excessively transparent surfaces, dark inputs, or charcoal buttons as the default primary action.
 
-## Component treatment
+## Header and navigation
 
-### Header and navigation
+- Use a white background with navy or charcoal text.
+- Use teal for the active or primary action state.
+- Separate the header with a subtle bottom border and restrained navy-tinted shadow.
+- Translucency may be used lightly, but the header must remain visibly white.
+- Keep location discovery and search access easy to find.
+- Keep cart or order controls recognizable when those features are present.
+- Preserve existing navigation functionality while improving spacing or grouping when needed.
+- Do not use a dark header as the default.
 
-- Keep the 72px sticky header and its current three-column layout.
-- Use the near-white or dark canvas with a subtle translucent treatment.
-- Keep the current logo construction and wordmark.
-- Use the single green accent for the mark and the word `direct`.
+## Hero
 
-### Hero
+The hero introduces neighbourhood commerce rather than technology.
 
-- Keep the split composition, image, copy, actions, and reveal timing.
-- Use Inter for the headline and Space Grotesk for body copy.
-- Render the eyebrow in JetBrains Mono with the green accent.
-- Preserve the pale-green backing shape behind the hero image.
+- Use white, warm white, or pale green as the background.
+- Use a navy or charcoal headline and friendly supporting copy.
+- Use a deep teal primary CTA and a white bordered secondary CTA.
+- Use authentic local-commerce imagery.
+- Hero imagery should make the digital marketplace visible while keeping neighbourhood vendors, products and delivery at the centre of the story.
+- Keep location or discovery functionality near the primary path.
+- Reinforce nearby businesses, local products, neighbourhood delivery, recurring subscriptions, and trusted vendors.
 
-### Discovery experience
+Do not use dark hero backgrounds, neon text, abstract compute graphics, particle fields, network-node visuals, futuristic lighting, or technical metadata labels.
 
-- Preserve every search, carousel, product, vendor, drawer, loading, empty, and error layout.
-- Use pale green for selected and highlighted states.
-- Use bright green for primary actions, focus rings, active dots, and meaningful icons.
-- Use JetBrains Mono for result metadata, counts, and compact status labels.
+## Discovery experience
 
-### Marketing sections
+Discovery is a core commerce workflow, not a technical data browser.
 
-- Keep all current section compositions and image positions.
-- Use white and pale-green surfaces within the same page theme.
-- Keep one consistent green accent across audience, journey, subscriptions, features, impact, and waitlist.
-- Remove color-role drift by routing all component states through semantic tokens.
+- Search, location, vendor, and product surfaces use white cards with visible separation from the canvas.
+- Featured businesses resolve media in order: banner image, thumbnail image, then an accessible branded name treatment.
+- Name-only carousel fallbacks use one compact availability label and a centered, balanced business name. Do not add a second descriptive tagline inside the media fallback.
+- Offer rails prioritize API-backed offers and link every resolvable offer to its vendor or product preview. Empty offer data may expose a clearly labelled sample preview for design inspection, but simulated discounts, codes, vendors, and expiry dates must never be presented as live.
+- Offer rails use visible horizontal controls, a deliberate edge crop, and a compact range of warm semantic tints so they attract attention without reading as an unrelated advertising system.
+- Selected and highlighted states use restrained pale green.
+- Result metadata uses standard readable Inter typography.
+- Vendor and product imagery remains visually prominent.
+- Show verified state, category, serviceability, price, delivery estimate, distance, delivery fee, minimum order, rating, open state, and subscription availability when those values exist in real application data.
+- Never invent ratings, prices, delivery times, fees, counts, or availability.
+- Loading skeletons match the final card shapes.
+- Empty and error states remain contextual, calm, and actionable.
 
-### Forms
+## Community and local identity
 
-- Labels remain above inputs.
-- Inputs use white or dark surfaces, visible borders, and high-contrast placeholder text.
-- Focus uses the green accent with an offset ring.
-- Error text uses the danger token.
+- Prefer imagery of real or authentic-looking local businesses.
+- Show shop owners, neighbourhood storefronts, products, and delivery interactions.
+- Use friendly vendor stories or community highlights where supported.
+- Emphasize verified vendors and transparent serviceability.
+- Avoid generic server, cloud, network, blockchain, or futuristic imagery.
+- Avoid abstract technology graphics as the primary visual focus.
+- Product and vendor content should be more visually prominent than decorative effects.
 
-### Footer
+Appropriate trust labels include:
 
-- Keep the current layout and link groups.
-- Use the same surface family as the rest of the page, with high-contrast text and green brand accents in both modes.
+- "Verified local business"
+- "Delivers to your neighbourhood"
+- "Transparent pricing"
+- "Manage or pause anytime"
+- "Supporting businesses near you"
+
+Do not invent ratings, delivery times, vendor counts, testimonials, or impact metrics that are not supported by actual data.
+
+## Warm secondary accents
+
+Use amber sparingly for subscription cards, offers, important reminders, popular-category badges, community highlights, and friendly decorative details.
+
+Use pale blue sparingly for delivery information, informational notices, order tracking, and vendor operational messages.
+
+Secondary accents support meaning. They must not turn the interface into a noisy multi-color system.
+
+## Forms, controls, and commerce panels
+
+- Labels remain visible above fields.
+- Inputs, selects, cart panels, checkout summaries, and account panels use white surfaces.
+- Placeholders remain readable without competing with entered text.
+- Focus states use a visible teal ring.
+- Errors use danger text plus a clear written message.
+- Primary actions use deep teal with white text.
+- Secondary actions use white with a border.
+- Touch targets remain at least 44px.
+
+## Subscriptions
+
+- Use warm white or pale amber to distinguish recurring-delivery moments.
+- Make frequency, pause, resume, skip, and next-delivery information easy to scan.
+- Use teal for the main action and amber only for friendly emphasis or reminders.
+- Never imply savings, delivery dates, or availability that are not present in application data.
+
+## Vendor dashboard
+
+Vendor-facing workflows also use the light theme:
+
+- Page canvas: `#F8FAF8`
+- White dashboard cards and tables
+- Navy headings
+- Teal active navigation
+- Clear neutral borders
+- Restrained shadows
+- Accessible status chips with text labels
+
+Order statuses use distinct semantic colors:
+
+- New: blue
+- Accepted: teal
+- Preparing: amber
+- Ready: indigo
+- Out for delivery: blue
+- Delivered: green
+- Cancelled or failed: red
+
+Do not use green for every status. Avoid a full-page dark dashboard. A white or pale sidebar is preferred.
+
+## Footer
+
+The footer may use either:
+
+- Deep navy with white text, or
+- Warm light with dark text
+
+A deep navy footer is acceptable because it is a limited terminal section. It must not cause any preceding workflow or page surface to inherit a dark theme.
 
 ## Motion
 
-Motion is explicitly frozen to the existing implementation:
+Motion is restrained and functional.
 
-- IntersectionObserver reveal behavior remains unchanged.
-- Existing transition durations and easing remain unchanged.
-- Carousel, drawer, skeleton, loading, hover, and active-state animations remain unchanged.
-- No new ambient, scroll-linked, or WebGL effects are added.
-- Existing `prefers-reduced-motion` behavior remains mandatory.
+Allow:
+
+- Subtle hover elevation
+- Dropdown and drawer transitions
+- Cart feedback
+- Skeleton loading
+- Small entrance transitions
+- Success feedback
+
+Remove or avoid:
+
+- Ambient animated gradients
+- Constant floating effects
+- Dramatic reveal sequences
+- Glowing animations
+- Scroll-linked spectacle
+- WebGL, Three.js, and particle effects
+
+Continue respecting `prefers-reduced-motion`.
 
 ## Responsive behavior
 
-The existing responsive implementation remains the source of truth:
+Preserve working responsive functionality while allowing careful improvements to mobile hero height, search placement, location selection, card width, grid density, section padding, navigation grouping, touch spacing, checkout panels, and vendor dashboard tables.
 
-- Desktop navigation stays on one line.
-- The mobile menu replaces desktop navigation at the existing breakpoint.
-- Split sections collapse using their current rules.
-- Discovery rails and carousels retain their existing overflow and touch behavior.
-- No breakpoint, width, padding, gap, or stacking rule may be changed as part of this visual refresh.
+On mobile:
+
+- Keep location and search controls visible early.
+- Do not let the hero consume excessive vertical space.
+- Make the navigation panel fill the viewport below the header and scroll independently when needed.
+- Keep carousel frames at a stable breakpoint-specific height; crop imagery with `object-fit: cover` so source dimensions never resize the showcase.
+- Use white cards against the light page canvas.
+- Prevent horizontal overflow.
+- Preserve touch-friendly controls.
+- Keep cart, checkout, and subscription actions easy to reach when present.
 
 ## Accessibility
 
-- Body text and controls must meet WCAG AA contrast in both modes.
-- Primary green buttons use charcoal text for strong contrast.
-- Focus indicators remain visible and at least 3px.
-- Touch targets remain at least 44px.
-- Keyboard navigation, labels, live regions, and drawer focus behavior remain intact.
-- Dark mode follows `prefers-color-scheme`.
-- Motion follows `prefers-reduced-motion`.
+- Meet WCAG AA contrast for body text and controls.
+- Maintain strong contrast between white surfaces and the page canvas.
+- Use visible teal focus rings.
+- Pair every status color with a text label.
+- Provide clear error messages.
+- Keep menus, drawers, forms, and controls keyboard-operable.
+- Preserve minimum 44px touch targets.
+- Do not use low-contrast bright green text on white.
+- Do not rely on color alone for verification or order status.
+- Primary buttons use white text on deep teal.
+- Continue respecting `prefers-reduced-motion`.
 
 ## Implementation checklist
 
-- [ ] Semantic tokens match this document.
-- [ ] Inter, Space Grotesk, and JetBrains Mono are loaded locally.
-- [ ] All hard-coded legacy greens are replaced with semantic tokens.
-- [ ] Card and control radii use the 8px system.
-- [ ] Primary green buttons use charcoal text.
-- [ ] Light and dark browser theme colors match the canvas tokens.
-- [ ] No markup, section order, layout rule, breakpoint, or animation changed.
+- [ ] The document contains no inherited source-product language.
+- [ ] The application uses a light theme only.
+- [ ] Automatic OS-level dark mode has been removed or disabled.
+- [ ] The global canvas uses a warm light neutral.
+- [ ] White surfaces are clearly visible throughout customer and vendor pages.
+- [ ] The primary color is deep teal rather than bright neon green.
+- [ ] Navy is used for trust-oriented headings and professional emphasis.
+- [ ] Amber is used sparingly for warmth and subscriptions.
+- [ ] Monospace is removed from normal interface content.
+- [ ] Customer discovery prioritizes vendors, products, location, and delivery information.
+- [ ] The hero communicates neighbourhood commerce rather than technology.
+- [ ] Vendor pages remain professional without becoming dark.
+- [ ] Cards, forms, drawers, tables, and dialogs follow the white-surface system.
+- [ ] Status colors are semantically distinct.
+- [ ] Contrast and focus indicators meet WCAG AA.
+- [ ] Mobile and desktop layouts have been visually checked.
+- [ ] Existing commerce logic and API behavior remain unchanged.
 - [ ] Tests and production build pass.
-- [ ] Desktop, tablet, and mobile visuals are checked in light and dark modes.

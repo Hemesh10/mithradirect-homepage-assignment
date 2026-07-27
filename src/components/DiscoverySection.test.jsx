@@ -41,13 +41,100 @@ describe('DiscoverySection', () => {
     warmLocationService.mockResolvedValue()
   })
 
-  it('renders live counts and omits an empty offers section', () => {
+  it('renders live counts, an honest empty state, and a sample offers preview', async () => {
+    const user = userEvent.setup()
     render(<DiscoverySection />)
 
     expect(screen.getByText('2')).toBeInTheDocument()
     expect(screen.getByText('businesses nearby')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.queryByText(/offers near you/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/local offers will appear when businesses publish them/i)).toBeInTheDocument()
+    expect(screen.getByText('Discounts and coupons are tied to nearby businesses.')).toBeInTheDocument()
+    expect(screen.getByText('Real offers only')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'How local offers will look' })).toBeInTheDocument()
+    expect(screen.getByText('LOCAL15')).toBeInTheDocument()
+    expect(screen.getByText('REPEAT18')).toBeInTheDocument()
+    expect(screen.getByText('WEEKEND10')).toBeInTheDocument()
+    expect(screen.getByText('NEARBY11')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next offers' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', {
+      name: 'Preview A little extra off a popular pick for Sarvapindi',
+    }))
+    expect(screen.getByRole('dialog', { name: 'Sarvapindi' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Sarvapindi' })).not.toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Hide sample offers' }))
+    expect(screen.queryByRole('heading', { name: 'How local offers will look' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Preview sample offers' })).toBeInTheDocument()
+  })
+
+  it('falls back from a featured banner to its thumbnail and then the business name', async () => {
+    render(<DiscoverySection />)
+    const carousel = screen.getByLabelText('Featured neighbourhood businesses')
+
+    expect(within(carousel).getByRole('img', {
+      name: 'Kammani - Authentic Telangana Snacks',
+    })).toBeInTheDocument()
+    expect(within(carousel).getAllByText('Kammani - Authentic Telangana Snacks')).toHaveLength(2)
+    expect(within(carousel).getByText('Featured local business')).toBeInTheDocument()
+    expect(within(carousel).queryByText(/Discover what is available nearby/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Show Straight From The Farm (SFTF)',
+    }))
+    const banner = within(carousel).getByRole('img', {
+      name: 'Straight From The Farm (SFTF)',
+    })
+    expect(banner).toHaveAttribute('src', 'https://images.test/sftf-banner.jpeg')
+
+    fireEvent.error(banner)
+    await waitFor(() => {
+      expect(within(carousel).getByRole('img', {
+        name: 'Straight From The Farm (SFTF)',
+      })).toHaveAttribute('src', 'https://images.test/sftf-logo.jpeg')
+    })
+  })
+
+  it('renders API-backed offers linked to their product preview', async () => {
+    const payload = {
+      ...homeFixture,
+      data: {
+        ...homeFixture.data,
+        offers: [{
+          id: 14,
+          offer_title: 'Fresh dairy week',
+          discount_percentage: 10,
+          offer_code: 'FRESH10',
+          expiry_date: '2026-08-15',
+          vendor_id: 123,
+          product_id: 248,
+        }],
+      },
+    }
+    useHomeDiscovery.mockReturnValue({
+      data: normalizeHomeResponse(payload),
+      error: null,
+      refresh: vi.fn(),
+      isLoading: false,
+      isRefreshing: false,
+    })
+
+    const user = userEvent.setup()
+    render(<DiscoverySection />)
+
+    expect(screen.getByRole('heading', { name: 'Offers near you' })).toBeInTheDocument()
+    expect(screen.getByText('10% off')).toBeInTheDocument()
+    expect(screen.getByText(/FRESH10/)).toBeInTheDocument()
+    expect(screen.queryByText('Real offers only')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', {
+      name: 'Preview Fresh dairy week for Desi Cow Milk (A2)',
+    }))
+    expect(screen.getByRole('dialog', { name: 'Desi Cow Milk (A2)' })).toBeInTheDocument()
   })
 
   it('shows all products in a slider without store filter tabs', () => {

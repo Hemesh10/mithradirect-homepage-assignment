@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
+  CaretLeft,
+  CaretRight,
+  Pause,
+  Play,
+  X,
+} from '@phosphor-icons/react'
+import {
+  BadgePercent,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Crosshair,
   Leaf,
   LoaderCircle,
   LocateFixed,
   MapPin,
-  Pause,
-  Play,
   RefreshCw,
   Search,
   SearchX,
   ShoppingBag,
   Sparkles,
   Store,
-  X,
 } from 'lucide-react'
 import { useHomeDiscovery } from '../hooks/useHomeDiscovery'
 import { usePlaceSearch } from '../hooks/usePlaceSearch'
@@ -38,6 +41,118 @@ const defaultPlace = {
   latitude: defaultQuery.latitude,
   longitude: defaultQuery.longitude,
   locationType: 'APPROXIMATE',
+}
+
+const sampleOfferTemplates = [
+  {
+    id: 'sample-dairy',
+    title: 'A little extra off a popular pick',
+    description: 'A sample saving linked to a product available nearby.',
+    discountLabel: '15% off',
+    code: 'LOCAL15',
+    expiresAt: '2027-03-31',
+    fallbackColor: 'yellow',
+    targetType: 'product',
+    targetIndex: 0,
+  },
+  {
+    id: 'sample-repeat',
+    title: 'Build a better recurring routine',
+    description: 'A sample subscription-style saving from a local business.',
+    discountLabel: '18% off',
+    code: 'REPEAT18',
+    expiresAt: '2027-04-15',
+    fallbackColor: 'green',
+    targetType: 'product',
+    targetIndex: 2,
+  },
+  {
+    id: 'sample-weekend',
+    title: 'Weekend neighbourhood basket',
+    description: 'A sample store-wide offer for an easy weekend restock.',
+    discountLabel: '10% off',
+    code: 'WEEKEND10',
+    expiresAt: '2027-04-30',
+    fallbackColor: 'coral',
+    targetType: 'vendor',
+    targetIndex: 0,
+  },
+  {
+    id: 'sample-try-local',
+    title: 'Try something new nearby',
+    description: 'A sample welcome coupon attached to a local product.',
+    discountLabel: '12% off',
+    code: 'TRYLOCAL12',
+    expiresAt: '2027-05-10',
+    fallbackColor: 'blue',
+    targetType: 'product',
+    targetIndex: 1,
+  },
+  {
+    id: 'sample-midweek',
+    title: 'Midweek essentials offer',
+    description: 'A sample saving for a useful everyday local pick.',
+    discountLabel: '14% off',
+    code: 'MIDWEEK14',
+    expiresAt: '2027-05-22',
+    fallbackColor: 'purple',
+    targetType: 'product',
+    targetIndex: 2,
+  },
+  {
+    id: 'sample-direct',
+    title: 'More value from a trusted local shop',
+    description: 'A sample business offer for shopping closer to home.',
+    discountLabel: '8% off',
+    code: 'DIRECT8',
+    expiresAt: '2027-06-05',
+    fallbackColor: 'green',
+    targetType: 'vendor',
+    targetIndex: 1,
+  },
+  {
+    id: 'sample-fresh',
+    title: 'A fresh start for your next order',
+    description: 'A sample limited-time saving linked to a popular product.',
+    discountLabel: '16% off',
+    code: 'FRESH16',
+    expiresAt: '2027-06-18',
+    fallbackColor: 'yellow',
+    targetType: 'product',
+    targetIndex: 0,
+  },
+  {
+    id: 'sample-nearby',
+    title: 'A friendly saving from nearby',
+    description: 'A sample coupon connected to a neighbourhood business.',
+    discountLabel: '11% off',
+    code: 'NEARBY11',
+    expiresAt: '2027-06-30',
+    fallbackColor: 'blue',
+    targetType: 'vendor',
+    targetIndex: 0,
+  },
+]
+
+function buildSampleOffers(data) {
+  return sampleOfferTemplates.map((template) => {
+    const { targetIndex, targetType, ...offer } = template
+    const product = targetType === 'product' && data.products.length
+      ? data.products[targetIndex % data.products.length]
+      : null
+    const vendor = targetType === 'vendor' && data.vendors.length
+      ? data.vendors[targetIndex % data.vendors.length]
+      : product?.vendor ?? null
+
+    return {
+      ...offer,
+      product,
+      vendor,
+      productId: product?.id ?? 0,
+      vendorId: vendor?.vendorId ?? 0,
+      vendorName: vendor?.name || 'Sample nearby business',
+    }
+  })
 }
 
 function HighlightedText({ text, query }) {
@@ -77,33 +192,52 @@ function SafeImage({ src, alt, className = '' }) {
   )
 }
 
-function BrandFallback({ item, className = '' }) {
+function BrandFallback({ item, className = '', variant = 'compact' }) {
+  const isShowcase = variant === 'showcase'
+
   return (
-    <div className={`brand-fallback brand-fallback--${item.fallbackColor} ${className}`} aria-hidden="true">
+    <div
+      className={`brand-fallback brand-fallback--${item.fallbackColor} ${isShowcase ? 'brand-fallback--showcase' : ''} ${className}`}
+      role="img"
+      aria-label={item.name}
+    >
       <span className="brand-fallback__dots" />
-      <strong>{item.initials || item.name?.slice(0, 2).toUpperCase()}</strong>
-      <small>Local goodness, made direct</small>
+      {isShowcase && <span className="brand-fallback__label">Featured local business</span>}
+      <strong>{isShowcase ? item.name : item.initials || item.name?.slice(0, 2).toUpperCase()}</strong>
+      {!isShowcase && <small>Local goodness, made direct</small>}
     </div>
   )
 }
 
 function MediaWithFallback({ item, type = 'thumbnail', className = '' }) {
-  const src = type === 'banner' ? item.bannerUrl : item.thumbnailUrl
-  const [failed, setFailed] = useState(false)
+  const sources = type === 'banner'
+    ? [item.bannerUrl, item.thumbnailUrl].filter(Boolean)
+    : [item.thumbnailUrl].filter(Boolean)
+  const [sourceIndex, setSourceIndex] = useState(0)
+  const src = sources[sourceIndex]
+  const isThumbnailFallback = type === 'banner' && src === item.thumbnailUrl
 
-  useEffect(() => setFailed(false), [src])
+  useEffect(() => setSourceIndex(0), [item.bannerUrl, item.thumbnailUrl, type])
 
-  if (!src || failed) return <BrandFallback item={item} className={className} />
+  if (!src) {
+    return (
+      <BrandFallback
+        item={item}
+        className={className}
+        variant={type === 'banner' ? 'showcase' : 'compact'}
+      />
+    )
+  }
 
   return (
     <img
-      className={className}
+      className={`${className} ${isThumbnailFallback ? 'media-with-fallback--thumbnail' : ''}`.trim()}
       src={src}
-      alt={`${item.name} ${type}`}
+      alt={item.name}
       loading={type === 'banner' ? 'eager' : 'lazy'}
       decoding="async"
       referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
+      onError={() => setSourceIndex((index) => index + 1)}
     />
   )
 }
@@ -181,7 +315,11 @@ function FeaturedCarousel({ vendors, onPreview }) {
       }}
     >
       <div className="featured-carousel__media">
-        <MediaWithFallback item={activeVendor} type="banner" />
+        <MediaWithFallback
+          key={activeVendor.vendorId}
+          item={activeVendor}
+          type="banner"
+        />
       </div>
       <div className="featured-carousel__content" aria-live="polite">
         <span className="discovery-kicker">Neighbourhood spotlight</span>
@@ -199,7 +337,7 @@ function FeaturedCarousel({ vendors, onPreview }) {
       </div>
       <div className="featured-carousel__controls">
         <button type="button" onClick={() => move(-1)} aria-label="Previous featured business">
-          <ChevronLeft size={18} />
+          <CaretLeft size={18} />
         </button>
         <div className="featured-carousel__dots" role="group" aria-label="Choose featured business">
           {vendors.map((vendor, index) => (
@@ -217,7 +355,7 @@ function FeaturedCarousel({ vendors, onPreview }) {
           {paused ? <Play size={15} fill="currentColor" /> : <Pause size={15} fill="currentColor" />}
         </button>
         <button type="button" onClick={() => move(1)} aria-label="Next featured business">
-          <ChevronRight size={18} />
+          <CaretRight size={18} />
         </button>
       </div>
     </div>
@@ -321,10 +459,10 @@ function ProductSlider({ products, onPreview }) {
         <span>{products.length} neighbourhood picks</span>
         <div className="product-slider__controls">
           <button type="button" onClick={() => move(-1)} disabled={!canMoveBack} aria-label="Previous popular products">
-            <ChevronLeft size={19} />
+            <CaretLeft size={19} />
           </button>
           <button type="button" onClick={() => move(1)} disabled={!canMoveForward} aria-label="Next popular products">
-            <ChevronRight size={19} />
+            <CaretRight size={19} />
           </button>
         </div>
       </div>
@@ -341,6 +479,168 @@ function ProductSlider({ products, onPreview }) {
         </div>
       </div>
     </div>
+  )
+}
+
+function formatOfferExpiry(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function OffersStrip({ offers, isPreview = false, onPreview }) {
+  const trackRef = useRef(null)
+  const [canMoveBack, setCanMoveBack] = useState(false)
+  const [canMoveForward, setCanMoveForward] = useState(offers.length > 1)
+  const titleId = isPreview ? 'sample-offers-title' : 'offers-title'
+
+  const updateControls = () => {
+    const track = trackRef.current
+    if (!track) return
+    setCanMoveBack(track.scrollLeft > 4)
+    setCanMoveForward(track.scrollLeft + track.clientWidth < track.scrollWidth - 4)
+  }
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(updateControls)
+    window.addEventListener('resize', updateControls)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', updateControls)
+    }
+  }, [offers.length])
+
+  const move = (direction) => {
+    const track = trackRef.current
+    if (!track) return
+    const distance = direction * Math.max(300, track.clientWidth * 0.78)
+    if (typeof track.scrollBy === 'function') {
+      track.scrollBy({ left: distance, behavior: 'smooth' })
+    } else {
+      track.scrollLeft += distance
+      updateControls()
+    }
+  }
+
+  return (
+    <section className="offers-section" aria-labelledby={titleId}>
+      <div className="discovery-section-heading">
+        <div>
+          <span className="discovery-kicker">
+            {isPreview ? 'Sample data preview' : 'From nearby businesses'}
+          </span>
+          <h3 id={titleId}>
+            {isPreview ? 'How local offers will look' : 'Offers near you'}
+          </h3>
+        </div>
+        <div className="offers-section__meta">
+          <span>
+            {offers.length} {isPreview ? 'sample' : 'live'} {offers.length === 1 ? 'offer' : 'offers'}
+          </span>
+          <div className="offers-strip__controls" aria-label="Offer navigation">
+            <button
+              type="button"
+              aria-label="Previous offers"
+              disabled={!canMoveBack}
+              onClick={() => move(-1)}
+            >
+              <CaretLeft size={18} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label="Next offers"
+              disabled={!canMoveForward}
+              onClick={() => move(1)}
+            >
+              <CaretRight size={18} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        className="offers-strip"
+        ref={trackRef}
+        onScroll={updateControls}
+        aria-label={isPreview ? 'Sample local offers' : 'Local offers'}
+        tabIndex="0"
+      >
+        {offers.map((offer) => {
+          const linkedItem = offer.product || offer.vendor
+          const linkedType = offer.product ? 'product' : 'vendor'
+          const metaLabel = offer.code ? 'Code' : 'Ends'
+          const metaValue = offer.code || formatOfferExpiry(offer.expiresAt)
+          const Card = linkedItem ? 'button' : 'article'
+          const cardProps = linkedItem
+            ? {
+                type: 'button',
+                'aria-label': `Preview ${offer.title} for ${linkedItem.name}`,
+                onClick: (event) => onPreview?.(linkedItem, linkedType, event.currentTarget),
+              }
+            : {}
+
+          return (
+            <Card
+              className={`offer-card offer-card--${offer.fallbackColor} ${linkedItem ? 'offer-card--linked' : ''}`}
+              key={offer.id}
+              {...cardProps}
+            >
+              <span className="offer-card__topline">
+                <BadgePercent size={19} aria-hidden="true" />
+                <span>{offer.discountLabel || 'Local offer'}</span>
+                {isPreview && <em>Sample</em>}
+              </span>
+              <strong className="offer-card__title">{offer.title}</strong>
+              {offer.vendorName && <span className="offer-card__vendor">{offer.vendorName}</span>}
+              {(metaValue || linkedItem) && (
+                <span className="offer-card__footer">
+                  {metaValue && (
+                    <span className="offer-card__code">
+                      <small>{metaLabel}</small>
+                      <strong>{metaValue}</strong>
+                    </span>
+                  )}
+                  {linkedItem && (
+                    <span className="offer-card__link">
+                      View {linkedType === 'product' ? 'product' : 'business'}
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </span>
+                  )}
+                </span>
+              )}
+            </Card>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function OffersEmptyState({ isPreviewOpen, onTogglePreview }) {
+  return (
+    <aside className="offers-empty-state" aria-label="Local offers availability">
+      <span className="offers-empty-state__icon"><BadgePercent size={22} aria-hidden="true" /></span>
+      <div>
+        <strong>Local offers will appear when businesses publish them.</strong>
+        <p>Discounts and coupons are tied to nearby businesses.</p>
+      </div>
+      <div className="offers-empty-state__actions">
+        <span className="offers-empty-state__status">Real offers only</span>
+        <button
+          type="button"
+          aria-expanded={isPreviewOpen}
+          aria-controls="sample-offers-preview"
+          onClick={onTogglePreview}
+        >
+          {isPreviewOpen ? 'Hide sample offers' : 'Preview sample offers'}
+        </button>
+      </div>
+    </aside>
   )
 }
 
@@ -481,6 +781,7 @@ export default function DiscoverySection() {
   const [locationError, setLocationError] = useState('')
   const [geoStatus, setGeoStatus] = useState('idle')
   const [selection, setSelection] = useState(null)
+  const [showSampleOffers, setShowSampleOffers] = useState(true)
   const { data, error, refresh, isLoading, isRefreshing } = useHomeDiscovery(query)
   const { suggestions, isSearching, error: searchError } = usePlaceSearch(
     searchText,
@@ -742,6 +1043,26 @@ export default function DiscoverySection() {
               <FeaturedCarousel vendors={data.featuredVendors} onPreview={openPreview} />
             )}
 
+            {data.offers.length > 0 ? (
+              <OffersStrip offers={data.offers} onPreview={openPreview} />
+            ) : (
+              <>
+                <OffersEmptyState
+                  isPreviewOpen={showSampleOffers}
+                  onTogglePreview={() => setShowSampleOffers((value) => !value)}
+                />
+                {showSampleOffers && (
+                  <div id="sample-offers-preview">
+                    <OffersStrip
+                      offers={buildSampleOffers(data)}
+                      isPreview
+                      onPreview={openPreview}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
             <div className="discovery-rail-section">
               <div className="discovery-section-heading">
                 <div><span className="discovery-kicker">Meet your makers</span><h3>New around you</h3></div>
@@ -777,6 +1098,8 @@ export default function DiscoverySection() {
 export {
   BrandFallback,
   DiscoveryError,
+  OffersEmptyState,
+  OffersStrip,
   PreviewDrawer,
   ProductArtwork,
   SafeImage,

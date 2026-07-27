@@ -37,6 +37,42 @@ describe('normalizeHomeResponse', () => {
     expect(result.products[2].usePlaceholder).toBe(false)
   })
 
+  it('normalizes offer details without inventing missing fields', () => {
+    const payload = {
+      ...homeFixture,
+      data: {
+        ...homeFixture.data,
+        offers: [
+          {
+            id: 14,
+            offer_title: 'Fresh dairy week',
+            discount_percentage: 10,
+            offer_code: 'FRESH10',
+            expiry_date: '2026-08-15',
+            business_name: 'Neighbourhood Dairy',
+            vendor_id: 123,
+            product_id: 248,
+          },
+        ],
+      },
+    }
+    const result = normalizeHomeResponse(payload)
+
+    expect(result.offers[0]).toMatchObject({
+      id: 14,
+      title: 'Fresh dairy week',
+      discountLabel: '10% off',
+      code: 'FRESH10',
+      expiresAt: '2026-08-15',
+      vendorName: 'Neighbourhood Dairy',
+      vendorId: 123,
+      productId: 248,
+    })
+    expect(result.offers[0].description).toBe('')
+    expect(result.offers[0].vendor?.name).toBe('Straight From The Farm (SFTF)')
+    expect(result.offers[0].product?.name).toBe('Desi Cow Milk (A2)')
+  })
+
   it('rejects malformed payloads before they reach the UI', () => {
     expect(() => normalizeHomeResponse({ success: true, data: {} })).toThrow(
       'new_vendors',

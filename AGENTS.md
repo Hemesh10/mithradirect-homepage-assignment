@@ -36,6 +36,16 @@ Use two-space indentation, single quotes, trailing commas, and no semicolons, ma
 
 No formatter or linter is currently configured; preserve the established style manually. Keep accessibility labels, keyboard behavior, reduced-motion support, and 44px touch targets intact.
 
+## Icon Guidelines
+
+Use `@phosphor-icons/react` for interface-control glyphs such as arrows, carets, menu, close, play, and pause.
+
+- Do not hand-roll SVG icons when a suitable Phosphor icon exists.
+- Keep control-icon weights and sizes consistent within each interface area.
+- Existing semantic or illustrative icons may continue using `lucide-react`; do not migrate them solely for library consistency.
+- Do not combine icons from different libraries inside the same individual control.
+- Preserve accessible names for icon-only controls and mark decorative icons as hidden from assistive technology.
+
 ## Testing Guidelines
 
 Vitest, React Testing Library, `user-event`, and `jest-dom` are configured in `vite.config.js`. Test observable behavior rather than implementation details. Mock network and geolocation APIs; tests must not depend on the live Render endpoint. Cover normalization, request failures, loading and empty states, validation, and keyboard interactions.

@@ -31,11 +31,27 @@ const fallbackColors = ['green', 'coral', 'yellow', 'purple', 'blue']
  */
 
 /**
+ * @typedef {Object} Offer
+ * @property {number|string} id
+ * @property {string} title
+ * @property {string} description
+ * @property {string} discountLabel
+ * @property {string} code
+ * @property {string} expiresAt
+ * @property {string} vendorName
+ * @property {string} fallbackColor
+ * @property {number} vendorId
+ * @property {number} productId
+ * @property {Vendor|null} vendor
+ * @property {Product|null} product
+ */
+
+/**
  * @typedef {Object} HomeDiscoveryData
  * @property {Vendor[]} featuredVendors
  * @property {Vendor[]} vendors
  * @property {Product[]} products
- * @property {unknown[]} offers
+ * @property {Offer[]} offers
  * @property {string} resultSource
  * @property {{vendorCount: number, productCount: number}} summary
  */
@@ -89,6 +105,63 @@ function normalizeVendor(rawVendor, index) {
   }
 }
 
+function normalizeDiscount(value) {
+  const cleaned = cleanString(value)
+  if (!cleaned && typeof value !== 'number') return ''
+  if (cleaned.toLowerCase().includes('off')) return cleaned
+  if (cleaned.includes('%')) return `${cleaned} off`
+
+  const amount = Number(value)
+  return Number.isFinite(amount) ? `${amount}% off` : cleaned
+}
+
+function normalizeOffer(rawOffer, index) {
+  const title = cleanDisplayString(
+    rawOffer?.title ?? rawOffer?.offer_title ?? rawOffer?.name,
+  )
+  const description = cleanDisplayString(
+    rawOffer?.description ?? rawOffer?.offer_description ?? rawOffer?.details,
+  )
+  const vendorName = cleanDisplayString(
+    rawOffer?.business_name ?? rawOffer?.vendor_name ?? rawOffer?.vendor?.business_name,
+  )
+  const vendorId = toNumber(
+    rawOffer?.vendor_id ??
+    rawOffer?.business_id ??
+    rawOffer?.vendor?.vendor_id ??
+    rawOffer?.vendor?.id,
+  )
+  const productId = toNumber(
+    rawOffer?.product_id ??
+    rawOffer?.product?.product_id ??
+    rawOffer?.product?.id,
+  )
+
+  return {
+    id: rawOffer?.id ?? rawOffer?.offer_id ?? `offer-${index}`,
+    title: title || 'Offer from a local business',
+    description,
+    discountLabel: normalizeDiscount(
+      rawOffer?.discount_percentage ??
+      rawOffer?.discount_percent ??
+      rawOffer?.discount,
+    ),
+    code: cleanString(rawOffer?.code ?? rawOffer?.offer_code ?? rawOffer?.coupon_code),
+    expiresAt: cleanString(
+      rawOffer?.expiry_date ??
+      rawOffer?.expires_at ??
+      rawOffer?.valid_until ??
+      rawOffer?.valid_till,
+    ),
+    vendorName,
+    fallbackColor: fallbackColors[index % fallbackColors.length],
+    vendorId,
+    productId,
+    vendor: null,
+    product: null,
+  }
+}
+
 function assertPayload(payload) {
   if (!payload || typeof payload !== 'object') {
     throw new TypeError('The home response is not an object.')
@@ -136,6 +209,7 @@ export function normalizeHomeResponse(payload) {
       vendor,
     }
   })
+  const productMap = new Map(products.map((product) => [product.id, product]))
 
   for (const vendor of vendors) {
     vendor.products = products.filter((product) => product.vendorId === vendor.vendorId)
@@ -152,12 +226,25 @@ export function normalizeHomeResponse(payload) {
         }
       : normalized
   })
+  const offers = (Array.isArray(data.offers) ? data.offers : [])
+    .map(normalizeOffer)
+    .map((offer) => {
+      const product = productMap.get(offer.productId) ?? null
+      const vendor = vendorMap.get(offer.vendorId) ?? product?.vendor ?? null
+
+      return {
+        ...offer,
+        product,
+        vendor,
+        vendorName: offer.vendorName || vendor?.name || '',
+      }
+    })
 
   return {
     featuredVendors,
     vendors,
     products,
-    offers: Array.isArray(data.offers) ? data.offers : [],
+    offers,
     resultSource: cleanString(data.result_source) || 'UNKNOWN',
     summary: {
       vendorCount: vendors.length,
